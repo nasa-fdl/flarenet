@@ -13,10 +13,8 @@ You are responsible for managing your own version of Python on the servers. Thes
 
 > wget https://repo.continuum.io/archive/Anaconda2-4.4.0-Linux-x86_64.sh; chmod a+x Anaconda2-4.4.0-Linux-x86_64.sh; ./Anaconda2-4.4.0-Linux-x86_64.sh
 
-> conda update --all
-> conda install -c anaconda tensorflow-gpu=1.1.0
-> conda install astropy
-> conda install pydot
-> conda install graphviz
+> conda update --all  
+> conda install astropy pydot graphviz keras  
+> pip install tensorflow tensorflow-gpu  
 
 Please update this based on your own experience.

@@ -45,6 +45,7 @@ def arguments_to_filename(args):
     Take the arguments object from argparse and turn it into a filename.
     """
     arg_dict = args.__dict__
+    arg_dict.pop("ignore", None)
     l = list(arg_dict)
     l = sorted(l)
     filename = "search"
@@ -59,6 +60,7 @@ def arguments_to_csv_header(args):
     """
     header = "validation loss, training loss"
     arg_dict = args.__dict__
+    arg_dict.pop("ignore", None)
     l = list(arg_dict)
     l = sorted(l)
     for arg in l:
@@ -73,6 +75,7 @@ def arguments_to_csv_row(args):
     """
     row = ""
     arg_dict = args.__dict__
+    arg_dict.pop("ignore", None)
     l = list(arg_dict)
     l = sorted(l)
     for arg in l:

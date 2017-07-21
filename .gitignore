@@ -1,6 +1,7 @@
 # Custom additions to gitignore
 datasets/sdo_128/bin
 *~
+training/version0/argument-search-results/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

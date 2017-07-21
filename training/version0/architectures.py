@@ -240,8 +240,8 @@ tensorboard_callbacks = TensorBoard(log_dir=tensorboard_log_data_path)
 corona_callbacks = CoronaCallbacks("argument-search-results", args)
 
 history = forecaster.fit_generator(generator(),
-                                   200,  #  steps per epoch
-                                   epochs=200,
+                                   50,  #  steps per epoch
+                                   epochs=300,
                                    validation_data=validation_generator(),
                                    validation_steps=validation_steps,
                                    callbacks=[tensorboard_callbacks, corona_callbacks])

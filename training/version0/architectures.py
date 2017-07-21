@@ -49,6 +49,7 @@ import numpy as np
 
 # Deep learning training library
 from keras.callbacks import TensorBoard
+from corona_callbacks import CoronaCallbacks
 
 # Utilities for this script
 import os
@@ -132,7 +133,7 @@ input_height = 4096
 maximum_y_value = 0.00054361000000000004
 y_reweight = 1839.55409209 # Scale maximum value to 1
 input_image = Input(shape=(input_width, input_height, input_channels))
-validation_steps = 20
+validation_steps = 30
 x = input_image
 
 #####################################
@@ -235,12 +236,15 @@ print "loading image dataset"
 #   Optimizing the Neural Network   #
 #####################################
 
+tensorboard_callbacks = TensorBoard(log_dir=tensorboard_log_data_path)
+corona_callbacks = CoronaCallbacks("argument-search-results", args)
+
 history = forecaster.fit_generator(generator(),
-                                   100,  #  steps per epoch
-                                   epochs=100,
+                                   200,  #  steps per epoch
+                                   epochs=200,
                                    validation_data=validation_generator(),
                                    validation_steps=validation_steps,
-                                   callbacks=[TensorBoard(log_dir=tensorboard_log_data_path)])
+                                   callbacks=[tensorboard_callbacks, corona_callbacks])
 
 # Loss on the training set
 print history.history['loss']

@@ -3,6 +3,7 @@ import os
 import numpy as np
 from datetime import timedelta, datetime
 import psutil
+import random
 
 class AIA:
     """
@@ -32,6 +33,8 @@ class AIA:
         self.input_width = 1024
         self.input_height = 1024
         self.input_channels = 8
+
+        random.seed(0)
 
         with open("config.yml", "r") as config_file:
             self.config = yaml.load(config_file)
@@ -150,16 +153,24 @@ class AIA:
                 data_x_sample = self.cache[f][0]
                 data_y_sample = self.cache[f][1]
             else:
-                shape = (self.input_width*self.input_height, self.input_channels)
-                data_x_sample = np.load(directory + f)
-                data_x_sample = ((data_x_sample.astype('float32').reshape(shape) - x_mean_vector) / x_standard_deviation_vector).reshape(shape) # Standardize to [-1,1]
-                data_y_sample = self.get_y(f)
+                try:
+                    shape = (self.input_width*self.input_height, self.input_channels)
+                    data_x_sample = np.load(directory + f)
+                    data_x_sample = ((data_x_sample.astype('float32').reshape(shape) - x_mean_vector) / x_standard_deviation_vector).reshape(shape) # Standardize to [-1,1]
+                    data_y_sample = self.get_y(f)
+                    if available_cache(training):
+                        self.cache[f] = [data_x_sample, data_y_sample]
+                except Exception:
+                    data_x_sample = []
+                    data_y_sample = []
 
-                if available_cache(training):
-                    self.cache[f] = [data_x_sample, data_y_sample]
+            if len(data_x_sample) > 0:
+                data_x.append(data_x_sample)
+                data_y.append(data_y_sample)
+            else:
+                print "missing corresponding files for " + f
 
-            data_x.append(data_x_sample)
-            data_y.append(data_y_sample)
+            i += 1
 
             if i == len(files):
                 i = 0

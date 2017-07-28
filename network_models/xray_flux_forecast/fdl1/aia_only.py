@@ -31,7 +31,7 @@ will be used.
 Before running the script, we recommend you start the tensorboard server so you
 can track the progress.
 
-`tensorboard --logdir=/tmp/sdo_128`
+`tensorboard --logdir=/tmp/version1`
 
 """
 
@@ -42,6 +42,7 @@ can track the progress.
 # Neural network specification
 from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Dropout, Flatten, Activation
 from keras.models import Model
+from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
 # Linear algebra library within Python
@@ -53,12 +54,17 @@ from keras.callbacks import TensorBoard
 # Utilities for this script
 import os
 import random
-import datetime
 import argparse
 import sys
+import yaml
 
 # Library for parsing arguments
 import argparse
+
+# Libraries packaged with this repository
+from network_models.training_callbacks import TrainingCallbacks
+from dataset_models.sdo.aia import aia
+from tools import tools
 
 # Uncomment to force training to take place on the CPU
 #import os
@@ -85,31 +91,31 @@ parser.add_argument('ignore', metavar='N', type=str, nargs='*',
                     help='ignore this argument. It is used to accumulate positional arguments from SMAC')
 
 # Set all pooling parameters to 1 to skip pooling layer
-parser.add_argument('-pool_1_width', type=int, nargs="?", default=2)
-parser.add_argument('-pool_1_height', type=int, nargs="?", default=2)
-parser.add_argument('-pool_1_stride', type=int, nargs="?", default=1)
+parser.add_argument('-pool_1_width', type=int, nargs="?", default=4)
+parser.add_argument('-pool_1_height', type=int, nargs="?", default=4)
+parser.add_argument('-pool_1_stride', type=int, nargs="?", default=4)
 
 # Set conv_1_channels to 0 to not include this layer
 parser.add_argument('-conv_1_channels', type=int, nargs="?", default=8)
-parser.add_argument('-conv_1_width', type=int, nargs="?", default=1)
-parser.add_argument('-conv_1_height', type=int, nargs="?", default=1)
+parser.add_argument('-conv_1_width', type=int, nargs="?", default=4)
+parser.add_argument('-conv_1_height', type=int, nargs="?", default=4)
 parser.add_argument('-conv_1_stride', type=int, nargs="?", default=1)
 conv_1_activation = "relu" # Not available initially
 
 # Set all pooling parameters to 1 to skip pooling layer
-parser.add_argument('-pool_2_width', type=int, nargs="?", default=2)
-parser.add_argument('-pool_2_height', type=int, nargs="?", default=2)
-parser.add_argument('-pool_2_stride', type=int, nargs="?", default=1)
+parser.add_argument('-pool_2_width', type=int, nargs="?", default=4)
+parser.add_argument('-pool_2_height', type=int, nargs="?", default=4)
+parser.add_argument('-pool_2_stride', type=int, nargs="?", default=4)
 
 # Set conv_2_channels to 0 to not include this layer
-parser.add_argument('-conv_2_channels', type=int, nargs="?", default=4)
-parser.add_argument('-conv_2_width', type=int, nargs="?", default=4)
-parser.add_argument('-conv_2_height', type=int, nargs="?", default=4)
+parser.add_argument('-conv_2_channels', type=int, nargs="?", default=8)
+parser.add_argument('-conv_2_width', type=int, nargs="?", default=2)
+parser.add_argument('-conv_2_height', type=int, nargs="?", default=2)
 parser.add_argument('-conv_2_stride', type=int, nargs="?", default=1)
 conv_2_activation = "relu" # Not available initially
 
 parser.add_argument('-dropout_rate', type=float, nargs="?", default=.3)
-parser.add_argument('-dense_1_count', type=int, nargs="?", default=128)
+parser.add_argument('-dense_1_count', type=int, nargs="?", default=16)
 dense_1_activation = "relu" # Not available for search initially
 
 # Final output for regression
@@ -119,22 +125,50 @@ dense_2_activation = "linear"
 args = parser.parse_args()
 
 #####################################
+#        CONFIGURE OUTPUTS          #
+#####################################
+
+# Set the paths
+model_directory_path = "network_models/xray_flux_forecast/fdl1/trained_models/"
+abspath = os.path.abspath(__file__)
+tools.change_directory_to_root()
+head, tail = os.path.split(abspath)
+training_callbacks = TrainingCallbacks(model_directory_path, args)
+
+#####################################
+#        INITIALIZING DATA          #
+#####################################
+
+print "initializing data"
+
+# Load the configuration file. You should never change
+# the configuration within this file.
+with open("network_models/xray_flux_forecast/fdl1/config.yml", "r") as config_file:
+    config = yaml.load(config_file)
+
+aia = aia.AIA(config["samples_per_step"])
+
+#####################################
 #         SPECIFYING DATA           #
 #####################################
 
-data_directory = "/home/smcgregor/projects/solar-forecast/datasets/sdo_128/bin/"
-tensorboard_log_data_path = "/tmp/sdo_128"
+
 seed = 0
 random.seed(seed)
-input_channels = 8
-input_width = 128
-input_height = 128
+input_width, input_height, input_channels = aia.get_dimensions()
 input_image = Input(shape=(input_width, input_height, input_channels))
+
+validation_steps = config["validation_steps"]
+steps_per_epoch = config["steps_per_epoch"]
+samples_per_step = config["samples_per_step"] # batch size
+epochs = config["epochs"]
 x = input_image
 
 #####################################
 #     Constructing Architecture     #
 #####################################
+
+print "constructing network in the Keras functional API"
 
 if args.pool_1_width != 1 or args.pool_1_height != 1 or args.pool_1_stride != 1:
     x = MaxPooling2D((args.pool_1_width, args.pool_1_height), padding='same', strides=args.pool_1_stride)(x)
@@ -154,103 +188,52 @@ x = Dense(args.dense_1_count, activation=dense_1_activation)(x)
 prediction = Dense(1, activation=dense_2_activation)(x)
 
 forecaster = Model(input_image, prediction)
-forecaster.compile(optimizer='adadelta', loss='mean_absolute_error')
+forecaster.compile(optimizer=config["optimizer"], loss=config["loss"])
 
-"""
-Debugging code:
-  Uncomment to plot the network architecture.
-"""
-#from keras.utils import plot_model
-#plot_model(forecaster, to_file='model3.png', show_shapes=True)
-#exit()
+forecaster.summary()
+orig_stdout = sys.stdout
+f = open(model_directory_path + training_callbacks.timestr + "/summary.txt", 'w')
+sys.stdout = f
+forecaster.summary() # This does not return the summary string so we capture standard out
+sys.stdout = orig_stdout
+f.close()
 
-#####################################
-#          LOADING DATA             #
-#####################################
+print "##################"
+print "Run identifier: " + str(training_callbacks.timestr)
+print "##################"
 
-# get a directory listing of the sdo data
-filenames = os.listdir(data_directory)
-train_files = filenames[:]
-
-def sdo_summary(filename):
-    """
-    Get a scalar summary of the SDO disk data, used in prediction.
-    """
-    path = data_directory + filename
-    data = np.memmap(path, dtype='uint8', mode='r', shape=(128,128,8))
-    return np.mean(data)
-    
-def get_files(paths):
-    """
-    Wrap the data up for training/testing.
-    todo: make this use an generator for efficiency.
-    """
-
-    def result_file_name(path):
-        """
-        Find the file result file for the current starting file. Return None
-        if there is no result file.
-        """
-        current_index = int(path.split("_")[2].split(".")[0])  # sdo* -> ['sdo', 'multichannel', '201507010000.bin'] -> #####
-        year = current_index / 100000000
-        month = current_index % 100000000 / 1000000
-        day = current_index % 1000000 / 10000
-        next_date = datetime.date(year, month, day) + datetime.timedelta(days=1)
-        part_1 = str(next_date.year)
-        if next_date.month < 10:
-            part_2 = "0" + str(next_date.month)
-        else:
-            part_2 = str(next_date.month)
-        if day < 10:
-            part_3 = "0" + str(next_date.day * 10000)
-        else:
-            part_3 = str(next_date.day * 10000)
-        next_index_string = part_1 + part_2 + part_3
-        next_file_name = "sdo_multichannel_" + next_index_string + ".bin"
-        if os.path.isfile(data_directory + next_file_name):
-            return next_file_name
-        else:
-            return None
-    
-    ret_x = []
-    ret_y = []
-    for idx, f in enumerate(paths):
-        res_name = result_file_name(f)
-        if not res_name:
-            print "no result found: " + f
-            continue
-        data_x = np.memmap(data_directory + f, dtype='uint8', mode='r', shape=(128,128,8))
-        ret_x.append(data_x[:].copy())
-        ret_y.append(sdo_summary(res_name))
-    return (np.asarray(ret_x), np.asarray(ret_y))
-
-# pack the x_train from the train set
-x_train, y_train = get_files(train_files)
-
-# Rescale, todo: do better
-x_train = x_train.astype('float32') / 255.
-x_train = np.reshape(x_train, (len(x_train), 128, 128, 8))
+# Do not allow a configuration with more than 150 million parameters
+if forecaster.count_params() > 150000000:
+    print "exiting since this network architecture will contain too many parameters"
+    print "Result for SMAC: SUCCESS, 0, 0, 999999999, 0" #  todo: figure out the failure string within SMAC
+    exit()
 
 #####################################
 #   Optimizing the Neural Network   #
 #####################################
 
-validation_split = 0.05
-if len(x_train) > 1000:
-    validation_split = 1000./len(x_train)
+tensorboard_log_data_path = "/tmp/version1/"
+tensorboard_callbacks = TensorBoard(log_dir=tensorboard_log_data_path)
 
-history = forecaster.fit(x_train, (np.asarray([[1]*len(x_train)])).reshape(len(x_train),1),
-                         epochs=3,
-                         validation_split=validation_split,
-                         batch_size=100,
-                         shuffle=True,
-                         callbacks=[TensorBoard(log_dir=tensorboard_log_data_path)])
+model_output_path = model_directory_path + training_callbacks.timestr + "/epochs/weights.{epoch:02d}-{val_loss:.2f}.hdf5"
+if not os.path.exists(model_output_path):
+    os.makedirs(model_output_path)
+model_checkpoint = ModelCheckpoint(model_output_path)
+
+history = forecaster.fit_generator(aia.generator(training=True),
+                                   steps_per_epoch,
+                                   epochs=epochs,
+                                   validation_data=aia.generator(training=False),
+                                   validation_steps=validation_steps,
+                                   callbacks=[tensorboard_callbacks, training_callbacks, model_checkpoint])
 
 # Loss on the training set
+print "printing loss history"
 print history.history['loss']
 
 # Loss on the validation set
 if 'val_loss' in history.history.keys():
+    print "printing history of validation loss over all epochs:"
     print history.history['val_loss']
 
 # Print the performance of the network for the SMAC algorithm

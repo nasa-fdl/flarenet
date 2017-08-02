@@ -8,13 +8,13 @@ import math
 from keras.models import load_model
 
 
-class AIA:
+class AIA2:
     """
     A class for managing the download
     and interface of the AIA data.
     """
 
-    def __init__(self, samples_per_step=32, dependent_variable="flux delta"):
+    def __init__(self, samples_per_step=32, dependent_variable="flux delta", lag="00min", catch="12min"):
         """
         Get a directory listing of the AIA data and load all the filenames
         into memory. We will loop over these filenames while training or
@@ -24,14 +24,22 @@ class AIA:
         with predicting the change in x-ray flux through time, or
         'forecast' which is concerned with predicting the total x-ray flux
         output at the next time step.
+        @param lag {str} the amount of time lag until we start making forecasts. 
+        "00min","12min","24min","36min","01hr","24hr"
+        @param catch {str} the time over which we find the maximum x-ray flux value.
+        "12min","24min","36min","01hr","24hr"
         """
 
-        #  Dictionary caching filenames to their normalized in-memory result
-        self.cache = {}
-
+        # Load the configuration file indicating where the files are stored,
+        # then load the names of the data files
+        with open("config.yml", "r") as config_file:
+            self.config = yaml.load(config_file)
+        
         self.samples_per_step = samples_per_step  # Batch size
         self.dependent_variable = dependent_variable # Target forecast
 
+        self.y_filepath = self.config["aia_path_2"] + "y/Y_GOES_XRAY_201401_201406_" + lag + "DELAY_" + catch + "MAX.csv"
+        
         # Dimensions
         self.input_width = 1024
         self.input_height = 1024
@@ -40,21 +48,18 @@ class AIA:
         # Standardize the random number generator to consistent shuffles
         random.seed(0)
 
-        # Load the configuration file indicating where the files are stored,
-        # then load the names of the data files
-        with open("config.yml", "r") as config_file:
-            self.config = yaml.load(config_file)
         assert(self.is_downloaded())
-        self.train_files = os.listdir(self.config["aia_path"] + "training")
-        self.validation_files = os.listdir(self.config["aia_path"] + "validation")
-        self.validation_directory = self.config["aia_path"] + "validation/"
-        self.training_directory = self.config["aia_path"] + "training/"
+        self.train_files = os.listdir(self.config["aia_path_2"] + "training")
+        self.validation_files = os.listdir(self.config["aia_path_2"] + "validation")
+        self.validation_directory = self.config["aia_path_2"] + "validation/"
+        self.training_directory = self.config["aia_path_2"] + "training/"
 
         # Load the y variables into memory
         self.minimum_y = float("Inf")
         self.maximum_y = float("-Inf")
         self.y_dict = {}
-        with open(self.config["aia_path"] + "y/Y_GOES_XRAY_201401.csv", "rb") as f:
+
+        with open(self.y_filepath, "rb") as f:
             for line in f:
                 split_y = line.split(",")
                 cur_y = float(split_y[1])
@@ -107,8 +112,7 @@ class AIA:
         """
         Return the change in the flux value from the last time step to this one.
         """
-        split_filename = filename.split("_")
-        k = split_filename[0] + "_" + split_filename[1]
+        k = filename[3:11] + filename[11:16]
         future = self.y_dict[k]
         current = self.get_prior_y(filename)
         return math.log(future - current + self.y_spread + 1)
@@ -117,8 +121,7 @@ class AIA:
         """
         Return the flux value for the current time step.
         """
-        split_filename = filename.split("_")
-        k = split_filename[0] + "_" + split_filename[1]
+        k = filename[3:11] + filename[11:16]
         future = self.y_dict[k]
         return math.log(future + self.y_spread + 1)
 
@@ -138,11 +141,11 @@ class AIA:
         """
         Get the y value for the prior time step. This will
         generally be used so we can capture the delta in the
-        prediction value.
+        prediction value. We also feed it into the neural network
+        as side information.
         """
-        f = filename.split("_")
         datetime_format = '%Y%m%d_%H%M'
-        datetime_object = datetime.strptime(f[0]+"_"+f[1], datetime_format)
+        datetime_object = datetime.strptime(filename[3:11] + filename[11:16], datetime_format)
         td = timedelta(minutes=-12)
         prior_datetime_object = datetime_object + td
         prior_datetime_string = datetime.strftime(prior_datetime_object, datetime_format)
@@ -150,7 +153,7 @@ class AIA:
 
     def clean_data(self):
         """
-        Remove all samples that lack the corresponding y value.
+        Remove all samples that lack the required y value.
         """
         starting_training_count = len(self.train_files)
         starting_validation_count = len(self.validation_files)
@@ -165,6 +168,38 @@ class AIA:
         print "Training " + str(starting_training_count) + "-> " + str(len(self.train_files))
         print "Validation " + str(starting_validation_count) + "-> " + str(len(self.validation_files))
 
+    def get_centering_tensor(self):
+        """
+        Get a tensor for centering the data on the GPU.
+        """
+        ret = []
+        x_mean_vector = [
+            0.5015,
+            3.225,
+            111.2,
+            170.6,
+            57.03,
+            7.897,
+            1.187,
+            21.98
+        ]
+        return np.array(x_mean_vector).reshape((1,1,1,self.input_channels))
+        
+    def get_unit_deviation_tensor(self):
+        """
+        Get a tensor for changing the data to have unit variance.
+        """
+        x_standard_deviation_vector = [
+            3.593,
+            11.11,
+            160.0,
+            246.3,
+            98.08,
+            13.45,
+            3.238,
+            24.78
+        ]
+        return np.array(x_standard_deviation_vector).reshape((1,1,1,self.input_channels))
 
     def generator(self, training=True):
         """
@@ -175,39 +210,35 @@ class AIA:
             directory = self.training_directory
         else:
             files = self.validation_files
-            directory = self.validation_directory
-
-        x_mean_vector = [2.2832, 10.6801, 226.4312, 332.5245, 174.1384, 27.1904, 4.7161, 67.1239]
-        x_standard_deviation_vector = [12.3858, 26.1799, 321.5300, 475.9188, 289.4842, 42.3820, 10.3813, 72.7348]
-
-        data_x = []
+            directory = self.validation_directory            
+        data_x_image = []
+        data_x_side_channel = []
         data_y = []
+        shape = (self.input_width*self.input_height, self.input_channels)
         i = 0
         while 1:
             f = files[i]
-            shape = (self.input_width*self.input_height, self.input_channels)
-            data_x_sample = np.load(directory + f)
-            data_x_sample = ((data_x_sample.astype('float32').reshape(shape) - x_mean_vector) / x_standard_deviation_vector).reshape(shape) # Standardize to [-1,1]
-            data_y_sample = self.get_y(f)
-
-            if not data_y_sample:
-                assert False
-            data_x.append(data_x_sample)
-            data_y.append(data_y_sample)
-
             i += 1
+            data_x_image_sample = np.load(directory + f)
+            data_x_side_channel_sample = np.array([self.get_prior_y(f)])
+            data_y_sample = self.get_y(f)
+            data_x_image.append(data_x_image_sample)
+            data_x_side_channel.append(data_x_side_channel_sample)
+            data_y.append(data_y_sample)
 
             if i == len(files):
                 i = 0
-                random.shuffle(files)
+                if training:
+                    random.shuffle(files)
 
-            if self.samples_per_step == len(data_x):
-                ret_x = np.reshape(data_x, (len(data_x), self.input_width, self.input_height, self.input_channels))
+            if self.samples_per_step == len(data_x_image) or not training:
+                ret_x_image = np.reshape(data_x_image, (len(data_x_image), self.input_width, self.input_height, self.input_channels))
+                ret_x_side_channel = np.reshape(data_x_side_channel, (len(data_x_side_channel), 1))
                 ret_y = np.reshape(data_y, (len(data_y)))
-                yield (ret_x, ret_y)
-                data_x = []
+                yield ([ret_x_image, ret_x_side_channel],ret_y)
+                data_x_image = []
+                data_x_side_channel = []
                 data_y = []
-
 
     def evaluate_network(self, network_model_path):
         """

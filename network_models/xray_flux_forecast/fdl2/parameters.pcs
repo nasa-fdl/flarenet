@@ -1,0 +1,24 @@
+pool_1_width ordinal {1,2,4,8} [1]
+pool_1_height ordinal {1,2,4,8} [1]
+pool_1_stride ordinal {1,2,4} [1]
+
+conv_1_channels integer [0,16] [8]
+conv_1_width integer  [1,5] [2]
+conv_1_height integer  [1,5] [2]
+conv_1_stride ordinal {1,2,4} [1]
+#conv_1_activation categorical {relu} [relu]
+
+pool_2_width ordinal {1,4,32,64} [4]
+pool_2_height ordinal {1,4,32,64} [4]
+pool_2_stride ordinal {1,2,4} [2]
+
+conv_2_channels integer [0,8] [8]
+conv_2_width integer  [1,7] [1]
+conv_2_height integer  [1,7] [1]
+conv_2_stride ordinal {1,2,4} [1]
+#conv_2_activation categorical {relu} [relu]
+
+dropout_rate ordinal {0,.2,.5} [.5]
+
+dense_1_count ordinal {8,16,32,128,256} [128]
+#dense_1_activation categorical {relu} [relu]

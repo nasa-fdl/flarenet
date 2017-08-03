@@ -1,0 +1,6 @@
+validation_steps: 32
+steps_per_epoch: 100
+samples_per_step: 32
+epochs: 10
+optimizer: adadelta
+loss: mean_absolute_error

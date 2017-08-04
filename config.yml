@@ -1,2 +1,10 @@
-aia_path: /data/sw/version1/
-aia_path_2: /data/sw/version3/
+# Data Locations
+aia_path: /data/sw/version3/
+
+# Network Learning Parameters
+validation_steps: 90
+steps_per_epoch: 100
+samples_per_step: 20
+epochs: 100
+optimizer: adadelta
+loss: mean_squared_error

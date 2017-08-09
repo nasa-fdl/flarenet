@@ -63,7 +63,7 @@ import argparse
 
 # Libraries packaged with this repository
 from network_models.training_callbacks import TrainingCallbacks
-from dataset_models.sdo.aia import aia
+from dataset_models.sdo.aia import aia, layers
 from tools import tools
 
 from keras.optimizers import adam
@@ -130,6 +130,9 @@ args = parser.parse_args()
 #        CONFIGURE OUTPUTS          #
 #####################################
 
+# How many images will be composited
+aia_image_count = 3
+
 # Set the paths
 model_directory_path = "network_models/xray_flux_forecast/fdl2/trained_models/"
 abspath = os.path.abspath(__file__)
@@ -148,7 +151,7 @@ print "initializing data"
 with open("config.yml", "r") as config_file:
     config = yaml.load(config_file)
 
-aia = aia.AIA(config["samples_per_step"])
+dataset_model = aia.AIA(config["samples_per_step"], side_channels=["current_goes"], aia_image_count=aia_image_count)
 
 #####################################
 #         SPECIFYING DATA           #
@@ -156,17 +159,21 @@ aia = aia.AIA(config["samples_per_step"])
 
 seed = 0
 random.seed(seed)
-input_width, input_height, input_channels = aia.get_dimensions()
-input_image = Input(shape=(input_width, input_height, input_channels))
-input_side_channel = Input(shape=(1,), name="GOES_Flux_Side_Channel") # Current x-ray flux
+input_width, input_height, input_channels = dataset_model.get_dimensions()
 
-validation_steps = config["validation_steps"]
+image_shape = (input_width, input_height, input_channels)
+input_images = []
+all_inputs = []
+for _ in range(0, aia_image_count):
+    image = Input(shape=image_shape)
+    input_images.append(image)
+    all_inputs.append(image)
+input_side_channel = Input(shape=(1,), name="GOES_Flux_Side_Channel") # Current x-ray flux
+all_inputs.append(input_side_channel)
+
 steps_per_epoch = config["steps_per_epoch"]
 samples_per_step = config["samples_per_step"] # batch size
 epochs = config["epochs"]
-x = input_image
-input_prior_image = Input(shape=(input_width, input_height, input_channels))
-x_prior = input_prior_image
 
 #####################################
 #     Constructing Architecture     #
@@ -174,21 +181,12 @@ x_prior = input_prior_image
 
 print "constructing network in the Keras functional API"
 
-# This tensor pulls the mean and std deviation from the dataset model
-# to whiten the inputs. This makes the gradient better defined.
-centering_tensor = aia.get_centering_tensor()
-scaling_tensor = aia.get_unit_deviation_tensor()
-def output_of_lambda(input_shape):
-    return input_shape
-def whiten(x):
-    x = K.tf.subtract(x, centering_tensor)
-    x = K.tf.divide(x, scaling_tensor)
-    return x
-x = Lambda(whiten, output_shape=output_of_lambda)(x)
-x_prior = Lambda(whiten, output_shape=output_of_lambda)(x_prior)
-x = concatenate([x, x_prior])
-x = Conv2D(4, (1,1), padding='same')(x)
-x = MaxPooling2D(pool_size=(4, 4), strides=4, padding='valid')(x)
+# Center and scale the input data
+for idx, input_image in enumerate(input_images):
+    input_images[idx] = layers.LogWhiten()(input_image)
+x = concatenate(input_images)
+x = Conv2D(12, (1,1), padding='same')(x)
+x = MaxPooling2D(pool_size=(4, 4), strides=2, padding='valid')(x)
 x = Conv2D(32, (4,4), padding='valid')(x)
 x = MaxPooling2D(pool_size=(4, 4), strides=4, padding='valid')(x)
 x = Conv2D(32, (4,4), padding='valid', strides=4)(x)
@@ -203,16 +201,6 @@ x = Dense(4, activation="relu")(x)
 prediction = Dense(1, activation="linear")(x)
 
 forecaster = Model(inputs=[input_image, input_prior_image, input_side_channel], outputs=[prediction])
-
-tmp1 = np.array([1])
-tmp3 = np.array([3])
-tmp100000 = np.array([100000])
-def custom_loss(y_true, y_pred):
-    return K.tf.pow(K.tf.add(K.tf.multiply(K.tf.abs(y_pred - y_true), tmp100000), 1), tmp3)
-    #return K.tf.log(K.tf.add(K.tf.abs(y_pred - y_true), tmp))
-
-#forecaster.compile(optimizer=adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0001), loss="mean_squared_logarithmic_error")
-#forecaster.compile(optimizer=adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0001), loss=custom_loss)
 forecaster.compile(optimizer=config["optimizer"], loss=config["loss"])
 
 # Print the netwrok summary information
@@ -247,13 +235,13 @@ if not os.path.exists(model_output_path):
     os.makedirs(model_output_path)
 model_checkpoint = ModelCheckpoint(model_output_path)
 
-history = forecaster.fit_generator(aia.generator(training=True),
+history = forecaster.fit_generator(dataset_model.training_generator(),
                                    steps_per_epoch,
+                                   max_queue_size=10,
                                    epochs=epochs,
-                                   validation_data=aia.generator(training=False),
-                                   validation_steps=validation_steps,
+                                   validation_data=dataset_model.get_validation_data(),
                                    callbacks=[tensorboard_callbacks, training_callbacks, model_checkpoint],
-                                   #nb_worker=2
+                                   workers=1,
 )
 
 # Loss on the training set

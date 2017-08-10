@@ -176,7 +176,7 @@ Example setup script for a server that already has the core Nvidia software inst
 
 > conda update --all  
 > conda install astropy pydot graphviz keras  
-> pip install tensorflow tensorflow-gpu  
+> pip install tensorflow tensorflow-gpu feather-format  
 
 Once you successully execute this installation, you should then clone this repository and add it to your python path.
 

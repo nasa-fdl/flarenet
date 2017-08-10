@@ -7,6 +7,7 @@ class TrainingCallbacks(keras.callbacks.Callback):
     def __init__(self, filepath, network_arguments):
         self.timestr = time.strftime("%Y%m%d-%H%M%S")
         training_directory_path = filepath + str(self.timestr) + "/"
+        print "making model ouput directory: " + training_directory_path
         os.makedirs(training_directory_path)
         directories = ["epochs", "performance", "maps", "features", "embeddings"]
         for directory in directories:

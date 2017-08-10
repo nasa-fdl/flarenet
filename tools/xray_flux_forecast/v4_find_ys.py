@@ -64,8 +64,8 @@ for delay in delays:
         this_term += ['Filename']
         Y_vals.append(this_term)
         
-        flare_files = glob.glob(filePath + '/validation/*_AIA*%03dm.fthr'%delay)
-        flare_files += glob.glob(filePath + '/training/*_AIA*%03dm.fthr'%delay)
+        flare_files = glob.glob(filePath + 'validation/*_AIA*%03dm.fthr'%delay)
+        flare_files += glob.glob(filePath + 'training/*_AIA*%03dm.fthr'%delay)
         for f in flare_files:
 
             inxSlash =  [m.start() for m in re.finditer('/', f)]
@@ -86,8 +86,8 @@ for delay in delays:
                 Y_vals.append(this_term)
 
 
-        no_flare_files = glob.glob(filePath + '/validation/AIA*%03dm.fthr'%(delay-60))
-        no_flare_files += glob.glob(filePath + '/training/AIA*%03dm.fthr'%(delay-60))
+        no_flare_files = glob.glob(filePath + 'validation/AIA*%03dm.fthr'%(delay-60))
+        no_flare_files += glob.glob(filePath + 'training/AIA*%03dm.fthr'%(delay-60))
         for f in no_flare_files:
             inxSlash =  [m.start() for m in re.finditer('/', f)]
             inxSlash = inxSlash[len(inxSlash)-1]
@@ -114,7 +114,7 @@ for delay in delays:
             this_dur = '%02dmin'%(duration)
         
         print len(Y_vals)
-        writer = csv.writer(file(filePath + '/y/All_Ys_%sDelay_%sMax.csv'%(this_delay,this_dur),'w'))
+        writer = csv.writer(file(filePath + 'y/All_Ys_%sDelay_%sMax.csv'%(this_delay,this_dur),'w'))
         writer.writerows(Y_vals)
 
 

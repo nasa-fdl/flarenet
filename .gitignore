@@ -1,6 +1,8 @@
 # Custom additions to gitignore
 datasets/sdo_128/bin
 *~
+training/version0/argument-search-results/*
+training/version1/argument-search-results/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -103,4 +105,8 @@ ENV/
 
 # mypy
 .mypy_cache/
+<<<<<<< HEAD
 tasks/
+=======
+.Rproj.user
+>>>>>>> 7724fe743f9fa6d9c491d5df751104b1fa515bee

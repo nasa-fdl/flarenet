@@ -63,7 +63,7 @@ import argparse
 
 # Libraries packaged with this repository
 from network_models.training_callbacks import TrainingCallbacks
-from dataset_models.sdo.aia2 import aia, layers
+from dataset_models.sdo.aia import aia, layers
 from tools import tools
 
 from keras.optimizers import adam
@@ -153,11 +153,11 @@ with open("config.yml", "r") as config_file:
 
 # Uncomment only the side channel you want to include.
 side_channels = []
-side_channels = ["current_goes"]
+#side_channels = ["current_goes"]
 #side_channels = ["hand_tailored"]
 #side_channels = ["true_value"]
 
-dataset_model = aia.AIA(config["samples_per_step"], side_channels=side_channels, aia_image_count=aia_image_count)
+dataset_model = aia.AIA(config["samples_per_step"], side_channels=side_channels, aia_image_count=aia_image_count, dependent_variable="forecast")
 
 #####################################
 #         SPECIFYING DATA           #

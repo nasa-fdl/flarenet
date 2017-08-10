@@ -1,5 +1,5 @@
 # Data Locations
-aia_path: /home/solardynamo/network_data
+aia_path: /data/sw/version4/
 
 # Network Learning Parameters
 steps_per_epoch: 100

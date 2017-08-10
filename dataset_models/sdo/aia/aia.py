@@ -5,6 +5,7 @@ import random
 import math
 import dataset_models.dataset
 from operator import div, sub
+import feather
 
 class AIA(dataset_models.dataset.Dataset):
     """
@@ -15,7 +16,7 @@ class AIA(dataset_models.dataset.Dataset):
     def __init__(self,
                  samples_per_step=32,
                  dependent_variable="flux delta",
-                 lag="00min",
+                 lag="01hr",
                  catch="24hr",
                  aia_image_count=2,
                  side_channels=["true_value", "current_goes", "hand_tailored"]):
@@ -46,7 +47,7 @@ class AIA(dataset_models.dataset.Dataset):
         self.dependent_variable = dependent_variable # Target forecast
 
         self._initialize_side_channels(side_channels)
-        self.y_filepath = self.config["aia_path"] + "y/Y_GOES_XRAY_201401_201406_" + lag + "DELAY_" + catch + "MAX.csv"
+        self.y_filepath = self.config["aia_path"] + "y/All_Ys_" + lag + "Delay_" + catch + "Max.csv"
 
         # Dimensions
         self.input_width = 1024
@@ -63,22 +64,13 @@ class AIA(dataset_models.dataset.Dataset):
         self.train_files = os.listdir(self.training_directory)
         self.validation_files = os.listdir(self.validation_directory)
 
-        # Load the y variables into memory
-        self.y_dict = {}
-
         # The number of image timesteps to include as the independent variable
         self.aia_image_count = aia_image_count
 
-        # Load the y values and the prior y values
-        self.y_prior_dict = {}
-        self.y_prior_filepath = self.config["aia_path"] + "y/Y_GOES_XRAY_201401_201406_00minDELAY_12minMAX.csv"
-        with open(self.y_prior_filepath, "rb") as f:
-            for line in f:
-                split_y = line.split(",")
-                cur_y = float(split_y[1])
-                self.y_prior_dict[split_y[0]] = cur_y
-
+        # Load the y variables into memory
+        self.y_dict = {}
         with open(self.y_filepath, "rb") as f:
+            f.readline()
             for line in f:
                 split_y = line.split(",")
                 cur_y = float(split_y[1])
@@ -224,6 +216,9 @@ class AIA(dataset_models.dataset.Dataset):
             print("WARNING: you have no dependent variable folder")
             print("place these data into " + self.config["aia_path"] + "y")
             return False
+
+        return True # todo: update these files
+
         if not os.path.isfile(self.config["aia_path"] + "y/Y_GOES_XRAY_201401_201406_00minDELAY_01hrMAX.csv"):
             print("WARNING: you have no results datasets")
             print("place these data into " + self.config["aia_path"] + "y")
@@ -369,7 +364,12 @@ class AIA(dataset_models.dataset.Dataset):
         """
         Return the flux value for the current time step.
         """
-        k = filename[3:11] + filename[11:16]
+        length = len(filename)
+        assert(length == 38 or length == 44)
+        if length == 44:
+            k = filename[9:17] + filename[17:22]
+        else:
+            k = filename[3:11] + filename[11:16]
         future = self.y_dict[k]
         return future
 
@@ -407,6 +407,7 @@ class AIA(dataset_models.dataset.Dataset):
         prediction value. We also feed it into the neural network
         as side information.
         """
+        assert False
         prior_datetime_string = self._get_prior_timestep_string(filename)
         return self.y_prior_dict[prior_datetime_string]
 
@@ -419,17 +420,17 @@ class AIA(dataset_models.dataset.Dataset):
         def filter_closure(training):
             def filter_files(filename):
                 try:
-                    self._get_prior_y(filename)
+                    if self.aia_image_count > 1:
+                        prior_x_file = self._get_prior_x_filename(filename)
+                        if prior_x_file not in self.train_files:
+                            return False
                     self._get_y(filename)
                     if len(self.side_channels) > 0:
                        self._get_side_channel_data(filename)
                     prior_x_file = self._get_prior_x_filename(filename)
                 except (KeyError, ValueError) as e:
                     return False
-                if prior_x_file not in self.train_files:
-                    return False
-                else:
-                    return True
+                return True
             return filter_files
         self.train_files = filter(filter_closure(True), self.train_files)
         self.validation_files = filter(filter_closure(False), self.validation_files)
@@ -452,12 +453,14 @@ class AIA(dataset_models.dataset.Dataset):
         assert previous >= 0, "previous should be a non-negative integer, it is currently " + previous
         assert previous < 100, "previous should not be a very large integer, it is currently " + previous
         if previous == 0:
-            return np.load(directory + filename)
+            data = feather.read_dataframe(directory + filename)
+            return data.values
         while True:
             previous_filename = self._get_prior_x_filename(filename)
             previous -= 1
             if previous == 0:
-                return np.load(directory + previous_filename)
+                data = feather.read_dataframe(directory + previous_filename)
+                return data.values
 
     def _get_hand_tailored_side_channel_data(self, filename):
         """

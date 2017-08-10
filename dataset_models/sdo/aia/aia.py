@@ -4,6 +4,7 @@ from datetime import timedelta, datetime
 import random
 import math
 import dataset_models.dataset
+from operator import div, sub
 
 class AIA(dataset_models.dataset.Dataset):
     """
@@ -17,7 +18,7 @@ class AIA(dataset_models.dataset.Dataset):
                  lag="00min",
                  catch="24hr",
                  aia_image_count=2,
-                 side_channels=["current_goes", "hand_tailored"]):
+                 side_channels=["true_value", "current_goes", "hand_tailored"]):
         """
         Get a directory listing of the AIA data and load all the filenames
         into memory. We will loop over these filenames while training or
@@ -44,10 +45,9 @@ class AIA(dataset_models.dataset.Dataset):
         self.samples_per_step = samples_per_step  # Batch size
         self.dependent_variable = dependent_variable # Target forecast
 
-        self.side_channels = side_channels
-
+        self._initialize_side_channels(side_channels)
         self.y_filepath = self.config["aia_path"] + "y/Y_GOES_XRAY_201401_201406_" + lag + "DELAY_" + catch + "MAX.csv"
-        
+
         # Dimensions
         self.input_width = 1024
         self.input_height = 1024
@@ -140,12 +140,27 @@ class AIA(dataset_models.dataset.Dataset):
                 data_x = []
                 data_y = []
 
+    def examine_weights(self, network_model_path):
+        """
+        Print the weights of the network.
+        """
+        from keras.models import load_model
+        from dataset_models.sdo.aia.layers import LogWhiten
+
+        custom_objects = {"LogWhiten": LogWhiten}
+        model = load_model(network_model_path,
+                           custom_objects=custom_objects)
+        for layer in model.layers:
+            weights = layer.get_weights() # list of numpy arrays
+            print weights
+
     def evaluate_network(self, network_model_path):
         """
         Generate a CSV file with the true and the predicted values for
         x-ray flux.
         """
         from keras.models import load_model
+        from dataset_models.sdo.aia.layers import LogWhiten
 
         custom_objects = {"LogWhiten": LogWhiten}
         model = load_model(network_model_path,
@@ -157,16 +172,14 @@ class AIA(dataset_models.dataset.Dataset):
             @param files {list[string]}
             @param outfile_path {string}
             """
-
             x_predictions = {}
             for filename in file_names:
-                data_x_image_1 = np.load(file_path + filename)
-                data_x_image_2 = np.load(self.training_directory + self._get_prior_x_filename(filename))
-                prediction = model.predict(
-                    [
-                        data_x_image_1.reshape(1, self.input_width, self.input_height, self.input_channels),
-                        data_x_image_2.reshape(1, self.input_width, self.input_height, self.input_channels),
-                        np.array(self._get_prior_y(filename)).reshape(1)], verbose=0)
+                data_x = []
+                data_y = []
+                sample = self._get_x_data(filename, file_path, aia_image_count=self.aia_image_count)
+                self._sample_append(data_x, sample)
+                data_y.append(-999999999999.0)
+                prediction = model.predict(self._finalize_dataset(data_x, data_y)[0], verbose=0)
                 x_predictions[filename] = [prediction, self._get_flux_delta(filename), self._get_flux(filename), self._get_prior_y(filename)]
 
             with open(outfile_path, "w") as out:
@@ -177,11 +190,12 @@ class AIA(dataset_models.dataset.Dataset):
                     cur = x_predictions[key]
                     out.write(key + "," + str(cur[0][0][0]) + "," + str(cur[1]) + "," + str(cur[2]) + "," + str(cur[3]) + "\n")
 
-        save_performance(self.train_files[0::100], self.training_directory, network_model_path + "training.performance")
-        save_performance(self.validation_files, self.validation_directory, network_model_path + "validation.performance")
+        save_performance(self.train_files[0::100], self.training_directory, network_model_path + ".training.performance")
+        save_performance(self.validation_files, self.validation_directory, network_model_path + ".validation.performance")
         print "#########"
-        print network_model_path + "training.performance"
-        print network_model_path + "validation.performance"
+        print "performance data has been saved to the following locations"
+        print network_model_path + ".training.performance"
+        print network_model_path + ".validation.performance"
         print "#########"
 
     def download_dataset(self):
@@ -224,16 +238,109 @@ class AIA(dataset_models.dataset.Dataset):
             return False
         return True
 
+    def get_side_channel_length(self):
+        """
+        Get the length of the side channel information.
+        """
+        length = 0
+        if "hand_tailored" in self.side_channels:
+            length += 25
+        if "true_value" in self.side_channels:
+            length += 1
+        if "current_goes" in self.side_channels:
+            length += 1
+        return length
+
+    def _initialize_side_channels(self, side_channels):
+        """
+        Setup the side channels for the network.
+        """
+        self.side_channels = side_channels
+        self.side_channel_filepath = self.config["aia_path"] + "side_channel/HMI_features_201401_201406_sorted.csv"
+        self.side_channel_dict = {}
+        if "hand_tailored" not in self.side_channels:
+            return
+        with open(self.side_channel_filepath, "rb") as f:
+            side_channel_means = [
+                3.70E+31,
+                3.77E+27,
+                1.34E+17,
+                3.70E+31,
+                3.25E+16,
+                2.64E+26,
+                1.24E+07,
+                1.23E+08,
+                5.26E+04,
+                4.11E+05,
+                9.26E+05,
+                1.20E+06,
+                4.12E+06,
+                4.17E+06,
+                1.84E+06,
+                4.57E+30,
+                -4.57E+32,
+                6.37E+02,
+                3.79E+14,
+                -3.92E+07,
+                2.06E+06,
+                -1.52E+06,
+                -6.30E+03,
+                -7.78E+02,
+                6.12E+01,
+            ]
+            side_channel_std_dev = [
+                1.70E+31,
+                2.27E+27,
+                3.69E+16,
+                1.70E+31,
+                9.03E+15,
+                1.59E+26,
+                7.43E+06,
+                7.39E+07,
+                3.16E+04,
+                2.47E+05,
+                5.60E+05,
+                7.23E+05,
+                2.49E+06,
+                2.52E+06,
+                1.11E+06,
+                2.89E+30,
+                3.65E+33,
+                1.44E+03,
+                2.28E+14,
+                2.36E+07,
+                1.20E+06,
+                7.23E+05,
+                3.81E+03,
+                4.75E+02,
+                3.72E+01
+            ]
+            def clean(elem):
+                if math.isinf(elem) or math.isnan(elem):
+                    return 0.0
+                else:
+                    return elem
+            for line in f:
+                split_sc = line.split(",")
+                split_sc[1:] = map(float, split_sc[1:])
+                split_sc[1:] = map(sub, split_sc[1:], side_channel_means)
+                split_sc[1:] = map(div, split_sc[1:], side_channel_std_dev)
+                split_sc[1:] = map(clean, split_sc[1:])
+                self.side_channel_dict[split_sc[0][:8]] = split_sc[1:]
+
     def _finalize_dataset(self, data_x, data_y):
         """
         Reshape the dataset to be appropriate for training and validation.
         """
         for index in range(0, self.aia_image_count):
             data_x[index] = np.reshape(data_x[index], (len(data_x[index]), self.input_width, self.input_height, self.input_channels)).astype('float32')
+        assert len(self.side_channels) < 2, "You need to fix this for arbitrary side channel selection"
         if "current_goes" in self.side_channels:
             data_x[-1] = np.reshape(data_x[-1], (len(data_x[-1]), 1)).astype('float32')
+        if "true_value" in self.side_channels:
+            data_x[-1] = np.reshape(data_x[-1], (len(data_x[-1]), 1)).astype('float32')
         if "hand_tailored" in self.side_channels:
-            raise NotImplementedError
+            data_x[-1] = np.reshape(data_x[-1], (len(data_x[-1]), len(data_x[-1][0]))).astype('float32')
         ret_y = np.reshape(data_y, (len(data_y)))
         return (data_x, ret_y)
 
@@ -255,7 +362,8 @@ class AIA(dataset_models.dataset.Dataset):
         k = filename[3:11] + filename[11:16]
         future = self.y_dict[k]
         current = self._get_prior_y(filename)
-        return future - current
+        delta = future - current
+        return delta
 
     def _get_flux(self, filename):
         """
@@ -313,6 +421,8 @@ class AIA(dataset_models.dataset.Dataset):
                 try:
                     self._get_prior_y(filename)
                     self._get_y(filename)
+                    if len(self.side_channels) > 0:
+                       self._get_side_channel_data(filename)
                     prior_x_file = self._get_prior_x_filename(filename)
                 except (KeyError, ValueError) as e:
                     return False
@@ -349,6 +459,12 @@ class AIA(dataset_models.dataset.Dataset):
             if previous == 0:
                 return np.load(directory + previous_filename)
 
+    def _get_hand_tailored_side_channel_data(self, filename):
+        """
+        Get the vector of side channel information that summarizes the magnetogram.
+        """
+        return self.side_channel_dict[filename[3:11]]
+
     def _get_side_channel_data(self, filename):
         """
         Get the side channel information defined for the current filename.
@@ -356,10 +472,12 @@ class AIA(dataset_models.dataset.Dataset):
               data accessor. It decided what to return based on an instance
               variable instead of a parameter. I should standardize.
         """
+        if "true_value" in self.side_channels:
+            return np.array([self._get_y(filename)])
         if "current_goes" in self.side_channels:
             return np.array([self._get_prior_y(filename)])
         if "hand_tailored" in self.side_channels:
-            raise NotImplementedError
+            return np.array(self._get_hand_tailored_side_channel_data(filename))
 
     def _get_x_data(self, filename, directory, aia_image_count=2):
         """

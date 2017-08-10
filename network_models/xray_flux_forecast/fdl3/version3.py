@@ -131,7 +131,7 @@ args = parser.parse_args()
 #####################################
 
 # How many images will be composited
-aia_image_count = 3
+aia_image_count = 1
 
 # Set the paths
 model_directory_path = "network_models/xray_flux_forecast/fdl2/trained_models/"
@@ -151,7 +151,13 @@ print "initializing data"
 with open("config.yml", "r") as config_file:
     config = yaml.load(config_file)
 
-dataset_model = aia.AIA(config["samples_per_step"], side_channels=["current_goes"], aia_image_count=aia_image_count)
+# Uncomment only the side channel you want to include.
+side_channels = []
+side_channels = ["current_goes"]
+#side_channels = ["hand_tailored"]
+#side_channels = ["true_value"]
+
+dataset_model = aia.AIA(config["samples_per_step"], side_channels=side_channels, aia_image_count=aia_image_count)
 
 #####################################
 #         SPECIFYING DATA           #
@@ -168,8 +174,10 @@ for _ in range(0, aia_image_count):
     image = Input(shape=image_shape)
     input_images.append(image)
     all_inputs.append(image)
-input_side_channel = Input(shape=(1,), name="GOES_Flux_Side_Channel") # Current x-ray flux
-all_inputs.append(input_side_channel)
+side_channel_length = dataset_model.get_side_channel_length()
+if side_channel_length > 0:
+    input_side_channel = Input(shape=(side_channel_length,), name="Side_Channel")
+    all_inputs.append(input_side_channel)
 
 steps_per_epoch = config["steps_per_epoch"]
 samples_per_step = config["samples_per_step"] # batch size
@@ -184,24 +192,28 @@ print "constructing network in the Keras functional API"
 # Center and scale the input data
 for idx, input_image in enumerate(input_images):
     input_images[idx] = layers.LogWhiten()(input_image)
-x = concatenate(input_images)
-x = Conv2D(12, (1,1), padding='same')(x)
-x = MaxPooling2D(pool_size=(4, 4), strides=2, padding='valid')(x)
-x = Conv2D(32, (4,4), padding='valid')(x)
-x = MaxPooling2D(pool_size=(4, 4), strides=4, padding='valid')(x)
-x = Conv2D(32, (4,4), padding='valid', strides=4)(x)
-x = MaxPooling2D(pool_size=(4, 4), strides=2, padding='valid')(x)
-x = Conv2D(32, (2,2), padding='valid', strides=2)(x)
+if len(input_images) > 1:
+    x = concatenate(input_images)
+else:
+    x = input_images[0]
+x = Conv2D(1, (1,1), strides=(1,1), padding='same', activation="relu")(x)
+x = MaxPooling2D(pool_size=(1024, 1024), strides=(1,1), padding='valid')(x)
 x = Flatten()(x)
 x = Dropout(.5)(x)
-x = concatenate([x, input_side_channel])
-x = Dense(32, activation="relu")(x)
-x = Dense(8, activation="relu")(x)
-x = Dense(4, activation="relu")(x)
+
+# Add the side channel data to the first fully connected layer
+if side_channel_length > 0:
+    x = concatenate([x, input_side_channel])
+
+x = Dense(2, activation="relu")(x)
+#x = Dense(128, activation="relu")(x)
+#x = Dense(32, activation="relu")(x)
+#x = Dense(32, activation="relu")(x)
 prediction = Dense(1, activation="linear")(x)
 
-forecaster = Model(inputs=[input_image, input_prior_image, input_side_channel], outputs=[prediction])
-forecaster.compile(optimizer=config["optimizer"], loss=config["loss"])
+forecaster = Model(inputs=all_inputs, outputs=prediction)
+adam = adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0, clipnorm=1.0)
+forecaster.compile(optimizer=adam, loss="mean_squared_error")
 
 # Print the netwrok summary information
 forecaster.summary()

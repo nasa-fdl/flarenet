@@ -73,9 +73,11 @@ for delay in delays:
                     this_arr.append(0.0)
             return max(this_arr)
         
+        #Adding column names
         Y_vals = [] #[[Date, Y-data - 12min/36min/1hr/24hr max, Channel 0,7 coefficients]]
         this_term = ['Date Stamp']
         this_term += ['Flux']
+        this_term += ['Delta']
         this_term += ['Filename']
         Y_vals.append(this_term)
         

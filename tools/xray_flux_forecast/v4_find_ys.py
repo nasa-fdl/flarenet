@@ -78,11 +78,11 @@ for delay in delays:
         
         #Adding column names
         Y_vals = [] #[[Date, Y-data - 12min/36min/1hr/24hr max, Channel 0,7 coefficients]]
-        this_term = ['Date Stamp']
-        this_term += ['Flux']
-        this_term += ['Delta']
-        this_term += ['Filename']
-        Y_vals.append(this_term)
+        y_row = ['Date Stamp']
+        y_row += ['Flux']
+        y_row += ['Delta']
+        y_row += ['Filename']
+        Y_vals.append(y_row)
         
         #Processing flare files
         flare_files = glob.glob(filePath + 'validation/*_AIA*060m.fthr')
@@ -107,11 +107,11 @@ for delay in delays:
 
             #Store values
             if Y_indexF < len(Y_data):
-                this_term = [date_s]
-                this_term += [get_yval(Y_indexF)]  #Future Xray Flux
-                this_term += [get_yval(Y_indexF) - get_yval(Y_indexC)]  #Delta
-                this_term += [f]  #File name
-                Y_vals.append(this_term)
+                y_row = [date_s]
+                y_row += [get_yval(Y_indexF)]  #Future Xray Flux
+                y_row += [get_yval(Y_indexF) - get_yval(Y_indexC)]  #Delta
+                y_row += [f]  #File name
+                Y_vals.append(y_row)
 
         #Processing no flare files
         no_flare_files = glob.glob(filePath + 'validation/AIA*000m.fthr')
@@ -133,11 +133,11 @@ for delay in delays:
 
             #Store values
             if Y_indexF < len(Y_data):
-                this_term = [date_s]
-                this_term += [get_yval(Y_indexF)]  #Future Xray Flux
-                this_term += [get_yval(Y_indexF) - get_yval(Y_indexC)]  #Delta
-                this_term += [f]  #File name
-                Y_vals.append(this_term)              
+                y_row = [date_s]
+                y_row += [get_yval(Y_indexF)]  #Future Xray Flux
+                y_row += [get_yval(Y_indexF) - get_yval(Y_indexC)]  #Delta
+                y_row += [f]  #File name
+                Y_vals.append(y_row)              
         
         if delay >= 60:
             this_delay = '%02dhr'%(delay/60)

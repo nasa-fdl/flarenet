@@ -7,7 +7,6 @@ import dataset_models.dataset
 from operator import div, sub
 import feather
 
-
 class AIA(dataset_models.dataset.Dataset):
     """
     A class for managing the download
@@ -49,7 +48,6 @@ class AIA(dataset_models.dataset.Dataset):
 
         self._initialize_side_channels(side_channels)
         self.y_filepath = self.config["aia_path"] + "y/All_Ys_" + lag + "Delay_" + catch + "Max.csv"
-
 
         # Dimensions
         self.input_width = 1024
@@ -463,12 +461,6 @@ class AIA(dataset_models.dataset.Dataset):
             if previous == 0:
                 data = feather.read_dataframe(directory + previous_filename)
                 return data.values
-
-    def _get_hand_tailored_side_channel_data(self, filename):
-        """
-        Get the vector of side channel information that summarizes the magnetogram.
-        """
-        return self.side_channel_dict[filename[3:11]]
 
     def _get_hand_tailored_side_channel_data(self, filename):
         """

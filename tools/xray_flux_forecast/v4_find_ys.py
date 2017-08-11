@@ -49,19 +49,22 @@ Y_init_date = datetime.datetime.strptime(Y_data[1][0],'%Y-%m-%d %H:%M:%S')
 
 delays = [60]
 catches = [12, 36, 60, 24*60]
-#catches = [12, 36, 60, 24*60]
 
 for delay in delays:
     for catch in catches:
         
         def get_Y_index(date):
-            """Function that finds the index on the large y file for a given date"""
+            """Function that finds the index on the reference large y file for a given date
+               @param dependent_variable {date} datetime.datetime.strptime object constructed
+                    from the file names"""
             delta = date-Y_init_date
             delta = delta.days*24*30 + delta.seconds/120 + 1
             return int(delta)
         
-        def get_yval(filename, index):
-            """Function that finds the maximum value within the catch window"""
+        def get_yval(index):
+            """Function that finds the maximum value within the catch window
+               @param dependent_variable {index} index within the reference large y file that points
+                    at the element of interest"""
             this_arr = []
             end_index = index + catch/2
             if end_index > len(Y_data):
@@ -105,8 +108,8 @@ for delay in delays:
             #Store values
             if Y_indexF < len(Y_data):
                 this_term = [date_s]
-                this_term += [get_yval(flare_s, Y_indexF)]  #Future Xray Flux
-                this_term += [get_yval(flare_s, Y_indexF) - get_yval(flare_s, Y_indexC)]  #Delta
+                this_term += [get_yval(Y_indexF)]  #Future Xray Flux
+                this_term += [get_yval(Y_indexF) - get_yval(Y_indexC)]  #Delta
                 this_term += [f]  #File name
                 Y_vals.append(this_term)
 
@@ -131,8 +134,8 @@ for delay in delays:
             #Store values
             if Y_indexF < len(Y_data):
                 this_term = [date_s]
-                this_term += [get_yval(flare_s, Y_indexF)]  #Future Xray Flux
-                this_term += [get_yval(flare_s, Y_indexF) - get_yval(flare_s, Y_indexC)]  #Delta
+                this_term += [get_yval(Y_indexF)]  #Future Xray Flux
+                this_term += [get_yval(Y_indexF) - get_yval(Y_indexC)]  #Delta
                 this_term += [f]  #File name
                 Y_vals.append(this_term)              
         

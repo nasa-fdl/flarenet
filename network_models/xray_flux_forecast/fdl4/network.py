@@ -134,7 +134,7 @@ args = parser.parse_args()
 aia_image_count = 1
 
 # Set the paths
-model_directory_path = "network_models/xray_flux_forecast/fdl2/trained_models/"
+model_directory_path = "network_models/xray_flux_forecast/fdl4/trained_models/"
 abspath = os.path.abspath(__file__)
 tools.change_directory_to_root()
 head, tail = os.path.split(abspath)

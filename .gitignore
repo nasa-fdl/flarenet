@@ -105,8 +105,6 @@ ENV/
 
 # mypy
 .mypy_cache/
-<<<<<<< HEAD
 tasks/
-=======
+
 .Rproj.user
->>>>>>> 7724fe743f9fa6d9c491d5df751104b1fa515bee

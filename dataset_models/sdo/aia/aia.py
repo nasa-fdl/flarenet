@@ -99,7 +99,7 @@ class AIA(dataset_models.dataset.Dataset):
         data_y = []
         data_x = []
         for f in self.validation_files:
-            sample = self._get_x_data(f, self.validation_directory, aia_image_count=self.aia_image_count)
+            sample = self._get_x_data(f, aia_image_count=self.aia_image_count, training=False)
             self._sample_append(data_x, sample)
             data_y.append(self._get_y(f))
         return self._finalize_dataset(data_x, data_y)
@@ -119,7 +119,7 @@ class AIA(dataset_models.dataset.Dataset):
         while 1:
             f = files[i]
             i += 1
-            sample = self._get_x_data(f, directory, aia_image_count=self.aia_image_count)
+            sample = self._get_x_data(f, aia_image_count=self.aia_image_count, training=True)
             self._sample_append(data_x, sample)
             data_y.append(self._get_y(f))
 
@@ -158,7 +158,7 @@ class AIA(dataset_models.dataset.Dataset):
         model = load_model(network_model_path,
                            custom_objects=custom_objects)
 
-        def save_performance(file_names, file_path, outfile_path):
+        def save_performance(file_names, outfile_path, training=None):
             """
             Evaluate the files with the model and output them
             @param files {list[string]}
@@ -168,7 +168,7 @@ class AIA(dataset_models.dataset.Dataset):
             for filename in file_names:
                 data_x = []
                 data_y = []
-                sample = self._get_x_data(filename, file_path, aia_image_count=self.aia_image_count)
+                sample = self._get_x_data(filename, aia_image_count=self.aia_image_count, training=training)
                 self._sample_append(data_x, sample)
                 data_y.append(-999999999999.0)
                 prediction = model.predict(self._finalize_dataset(data_x, data_y)[0], verbose=0)
@@ -182,8 +182,8 @@ class AIA(dataset_models.dataset.Dataset):
                     cur = x_predictions[key]
                     out.write(key + "," + str(cur[0][0][0]) + "," + str(cur[1]) + "," + str(cur[2]) + "," + str(cur[3]) + "\n")
 
-        save_performance(self.train_files[0::100], self.training_directory, network_model_path + ".training.performance")
-        save_performance(self.validation_files, self.validation_directory, network_model_path + ".validation.performance")
+        save_performance(self.train_files[0::100], network_model_path + ".training.performance", training=True)
+        save_performance(self.validation_files, network_model_path + ".validation.performance", training=False)
         print "#########"
         print "performance data has been saved to the following locations"
         print network_model_path + ".training.performance"
@@ -354,7 +354,7 @@ class AIA(dataset_models.dataset.Dataset):
         """
         Return the change in the flux value from the last time step to this one.
         """
-        k = filename[3:11] + filename[11:16]
+        k = filename[9:22]
         future = self.y_dict[k]
         current = self._get_prior_y(filename)
         delta = future - current
@@ -365,11 +365,8 @@ class AIA(dataset_models.dataset.Dataset):
         Return the flux value for the current time step.
         """
         length = len(filename)
-        assert(length == 38 or length == 44)
-        if length == 44:
-            k = filename[9:17] + filename[17:22]
-        else:
-            k = filename[3:11] + filename[11:16]
+        assert(length == 44)
+        k = filename[9:22]
         future = self.y_dict[k]
         return future
 
@@ -385,20 +382,27 @@ class AIA(dataset_models.dataset.Dataset):
             assert False # There are currently no other valid dependent variables
             return None
 
-    def _get_prior_timestep_string(self, filename):
+    def _get_prior_timestep_string(self, filename, timestep):
         """
         Get the filename of the previous timestep
         """
         datetime_format = '%Y%m%d_%H%M'
-        datetime_object = datetime.strptime(filename[3:11] + filename[11:16], datetime_format)
-        td = timedelta(minutes=-12)
+        datetime_object = datetime.strptime(filename[9:22], datetime_format)
+        td = timedelta(minutes=(-12*timestep))
         prior_datetime_object = datetime_object + td
         prior_datetime_string = datetime.strftime(prior_datetime_object, datetime_format)
         return prior_datetime_string
 
-    def _get_prior_x_filename(self, filename):
-        identifier = self._get_prior_timestep_string(filename)
-        return "AIA" + identifier + "_08chnls.dat"
+    def _get_prior_x_filename(self, filename, timestep):
+        """Get the name of the file preceding the filename
+        by timestep files.
+        """
+        identifier = self._get_prior_timestep_string(filename, timestep)
+        if filename[:5] == "noflr":
+            suffix = "_8chnls_1024_0" + str(12 * timestep) + "m.fthr"
+        else:
+            suffix = "_8chnls_1024_0" + str(60 + 12 * timestep) + "m.fthr"
+        return filename[0:9] + identifier + suffix
 
     def _get_prior_y(self, filename):
         """
@@ -408,7 +412,7 @@ class AIA(dataset_models.dataset.Dataset):
         as side information.
         """
         assert False
-        prior_datetime_string = self._get_prior_timestep_string(filename)
+        prior_datetime_string = self._get_prior_timestep_string(filename, 1)
         return self.y_prior_dict[prior_datetime_string]
 
     def _clean_data(self):
@@ -417,17 +421,18 @@ class AIA(dataset_models.dataset.Dataset):
         """
         starting_training_count = len(self.train_files)
         starting_validation_count = len(self.validation_files)
+        # todo: this closure no longer does anything
         def filter_closure(training):
             def filter_files(filename):
                 try:
                     if self.aia_image_count > 1:
-                        prior_x_file = self._get_prior_x_filename(filename)
-                        if prior_x_file not in self.train_files:
+                        for i in range(0, self.aia_image_count):
+                            prior_x_file = self._get_prior_x_filename(filename, i)
+                        if prior_x_file not in self.train_files and prior_x_file not in self.validation_files:
                             return False
                     self._get_y(filename)
                     if len(self.side_channels) > 0:
                        self._get_side_channel_data(filename)
-                    prior_x_file = self._get_prior_x_filename(filename)
                 except (KeyError, ValueError) as e:
                     return False
                 return True
@@ -451,22 +456,14 @@ class AIA(dataset_models.dataset.Dataset):
               necessary to keep finding older files by walking back through the history.
         """
         assert previous >= 0, "previous should be a non-negative integer, it is currently " + previous
-        assert previous < 100, "previous should not be a very large integer, it is currently " + previous
+        assert previous < 5, "previous should not be a very large integer, it is currently " + previous
         if previous == 0:
             data = feather.read_dataframe(directory + filename)
             return data.values
-        while True:
-            previous_filename = self._get_prior_x_filename(filename)
-            previous -= 1
-            if previous == 0:
-                data = feather.read_dataframe(directory + previous_filename)
-                return data.values
-
-    def _get_hand_tailored_side_channel_data(self, filename):
-        """
-        Get the vector of side channel information that summarizes the magnetogram.
-        """
-        return self.side_channel_dict[filename[3:11]]
+        else:
+            previous_filename = self._get_prior_x_filename(filename, previous)
+            data = feather.read_dataframe(directory + previous_filename)
+            return data.values
 
     def _get_side_channel_data(self, filename):
         """
@@ -482,18 +479,21 @@ class AIA(dataset_models.dataset.Dataset):
         if "hand_tailored" in self.side_channels:
             return np.array(self._get_hand_tailored_side_channel_data(filename))
 
-    def _get_x_data(self, filename, directory, aia_image_count=2):
+    def _get_x_data(self, filename, aia_image_count=2, training=None):
         """
         Get the list of data associated with the sample filename.
         @param filename {string} The name of the file which we are currently sampling.
-        @param directory {string} The location in which we will look for the file.
         @param aia_image_count {int} The total number of timestep images to be composited.
         @param current_data {list} The data that we will append to.
+        @param training {bool} Indicates whether we are currently training or testing.
+           This will determine where we look for x-files.
         """
         current_data = []
+        if training:
+            directory = self.training_directory
+        else:
+            directory = self.validation_directory
         for index in range(0, aia_image_count):
-            if index == 1:
-                directory = self.training_directory
             current_data.append(self._get_aia_image(filename, directory, previous=index))
         if self.side_channels:
             data_x_side_channel_sample = self._get_side_channel_data(filename)

@@ -1,20 +1,13 @@
 """
 This is a script for assembling a y file based on the files currently in the training and validation folders.
-
 It assumes you are using version 4 data.
-
 It looks for the training and validation folders inside the data folder specified in config.yml
-
 Delays and catches can be specified in the arrays below.
-
 The resulting file has the following columns:
-
 1. Date Stamp
 2. Max Xray during catch after delay
 3. Delta Xray flux (Column 2 minus current Xray flux)
 4. File name
-
-
 """
 
 #!usr/env/bin python
@@ -91,11 +84,8 @@ for delay in delays:
 
             inxSlash =  [m.start() for m in re.finditer('/', f)]
             inxSlash = inxSlash[len(inxSlash)-1]
-            f = f[inxSlash+1:]
-            inxUndr =  [m.start() for m in re.finditer('_', f)]
-            inxUndr = inxUndr[0]
-            flare_s = f[inxUndr+1:]            
-            date_s = flare_s[3:16]
+            f = f[inxSlash+1:]           
+            date_s = f[9:22]
 
             #Current Xray flux
             date = datetime.datetime.strptime(date_s,'%Y%m%d_%H%M')
@@ -114,14 +104,13 @@ for delay in delays:
                 Y_vals.append(y_row)
 
         #Processing no flare files
-        no_flare_files = glob.glob(filePath + 'validation/AIA*000m.fthr')
-        no_flare_files += glob.glob(filePath + 'training/AIA*000m.fthr')
+        no_flare_files = glob.glob(filePath + 'validation/noflr_AIA*000m.fthr')
+        no_flare_files += glob.glob(filePath + 'training/noflr_AIA*000m.fthr')
         for f in no_flare_files:
             inxSlash =  [m.start() for m in re.finditer('/', f)]
             inxSlash = inxSlash[len(inxSlash)-1]
-            f = f[inxSlash+1:]
-
-            date_s = f[3:16]
+            f = f[inxSlash+1:]           
+            date_s = f[9:22]
 
             #Current Xray flux
             date = datetime.datetime.strptime(date_s,'%Y%m%d_%H%M')
@@ -151,8 +140,3 @@ for delay in delays:
         print len(Y_vals)
         writer = csv.writer(file(filePath + 'y/All_Ys_%sDelay_%sMax.csv'%(this_delay,this_dur),'w'))
         writer.writerows(Y_vals)
-
-
-##['2010-01-01 00:02:00', '6.2712e-08', '58']
-
-

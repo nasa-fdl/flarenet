@@ -465,7 +465,7 @@ class AIA(dataset_models.dataset.Dataset):
             previous_filename = self._get_prior_x_filename(filename, previous)
             data = feather.read_dataframe(directory + previous_filename)
             return data.values
-
+          
     def _get_hand_tailored_side_channel_data(self, filename):
         """
         Get the vector of side channel information that summarizes the magnetogram.

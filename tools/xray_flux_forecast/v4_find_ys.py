@@ -54,12 +54,16 @@ for delay in delays:
             delta = delta.days*24*30 + delta.seconds/120 + 1
             return int(delta)
         
-        def get_yval(index):
+        def get_yval(index, is_current = 0):
             """Function that finds the maximum value within the catch window
                @param dependent_variable {index} index within the reference large y file that points
                     at the element of interest"""
+            this_catch = catch
+            if is_current:
+                this_catch = 12
             this_arr = []
-            end_index = index + catch/2
+            end_index = index + this_catch/2
+             
             if end_index > len(Y_data):
                 end_index = len(Y_data)  
             for j in range(index,end_index):
@@ -98,8 +102,8 @@ for delay in delays:
             #Store values
             if Y_indexF < len(Y_data):
                 y_row = [date_s]
-                y_row += [get_yval(Y_indexF)]  #Future Xray Flux
-                y_row += [get_yval(Y_indexF) - get_yval(Y_indexC)]  #Delta
+                y_row += [get_yval(Y_indexF, 0)]  #Future Xray Flux
+                y_row += [get_yval(Y_indexF, 0) - get_yval(Y_indexC, 1)]  #Delta
                 y_row += [f]  #File name
                 Y_vals.append(y_row)
 
@@ -123,8 +127,8 @@ for delay in delays:
             #Store values
             if Y_indexF < len(Y_data):
                 y_row = [date_s]
-                y_row += [get_yval(Y_indexF)]  #Future Xray Flux
-                y_row += [get_yval(Y_indexF) - get_yval(Y_indexC)]  #Delta
+                y_row += [get_yval(Y_indexF, 0)]  #Future Xray Flux
+                y_row += [get_yval(Y_indexF, 0) - get_yval(Y_indexC, 1)]  #Delta
                 y_row += [f]  #File name
                 Y_vals.append(y_row)              
         

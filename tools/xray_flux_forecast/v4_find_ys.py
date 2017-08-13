@@ -54,29 +54,33 @@ for delay in delays:
             delta = delta.days*24*30 + delta.seconds/120 + 1
             return int(delta)
         
-        def get_yval(index, is_current = 0):
+        def get_yval(index, is_current = False):
             """Function that finds the maximum value within the catch window
                @param dependent_variable {index} index within the reference large y file that points
                     at the element of interest"""
-            this_catch = catch
             if is_current:
-                this_catch = 12
-            this_arr = []
-            end_index = index + this_catch/2
+                if Y_data[index][1] == 'NA':
+                    return 0.0
+                else:
+                    return float(Y_data[index][1])
+
+            catch_arr = []
+            end_index = index + catch/2
              
             if end_index > len(Y_data):
                 end_index = len(Y_data)  
             for j in range(index,end_index):
                 if Y_data[j][1] != 'NA':
-                    this_arr.append(float(Y_data[j][1]))
+                    catch_arr.append(float(Y_data[j][1]))
                 else:
-                    this_arr.append(0.0)
-            return max(this_arr)
+                    catch_arr.append(0.0)
+            return max(catch_arr)
         
         #Adding column names
         Y_vals = [] #[[Date, Y-data - 12min/36min/1hr/24hr max, Channel 0,7 coefficients]]
         y_row = ['Date Stamp']
-        y_row += ['Flux']
+        y_row += ['Catch Flux']
+        y_row += ['Current Flux']
         y_row += ['Delta']
         y_row += ['Filename']
         Y_vals.append(y_row)
@@ -102,8 +106,9 @@ for delay in delays:
             #Store values
             if Y_indexF < len(Y_data):
                 y_row = [date_s]
-                y_row += [get_yval(Y_indexF, 0)]  #Future Xray Flux
-                y_row += [get_yval(Y_indexF, 0) - get_yval(Y_indexC, 1)]  #Delta
+                y_row += [get_yval(Y_indexF, False)]  #Future Xray Flux
+                y_row += [get_yval(Y_indexC, True)]  #Current Xray Flux
+                y_row += [y_row[1]-y_row[2]]  #Delta
                 y_row += [f]  #File name
                 Y_vals.append(y_row)
 
@@ -127,8 +132,9 @@ for delay in delays:
             #Store values
             if Y_indexF < len(Y_data):
                 y_row = [date_s]
-                y_row += [get_yval(Y_indexF, 0)]  #Future Xray Flux
-                y_row += [get_yval(Y_indexF, 0) - get_yval(Y_indexC, 1)]  #Delta
+                y_row += [get_yval(Y_indexF, False)]  #Future Xray Flux
+                y_row += [get_yval(Y_indexC, True)]  #Current Xray Flux
+                y_row += [y_row[1]-y_row[2]]  #Delta
                 y_row += [f]  #File name
                 Y_vals.append(y_row)              
         

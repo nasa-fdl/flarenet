@@ -69,12 +69,14 @@ class AIA(dataset_models.dataset.Dataset):
 
         # Load the y variables into memory
         self.y_dict = {}
+        self.y_prior_dict = {}
         with open(self.y_filepath, "rb") as f:
             f.readline()
             for line in f:
                 split_y = line.split(",")
                 cur_y = float(split_y[1])
                 self.y_dict[split_y[0]] = cur_y
+                self.y_prior_dict[split_y[0]] = float(split_y[2])
         self._clean_data()
 
     def get_dimensions(self):
@@ -251,64 +253,64 @@ class AIA(dataset_models.dataset.Dataset):
         Setup the side channels for the network.
         """
         self.side_channels = side_channels
-        self.side_channel_filepath = self.config["aia_path"] + "side_channel/HMI_features_201401_201406_sorted.csv"
+        self.side_channel_filepath = self.config["aia_path"] + "side_channel/HMI_features.csv"
         self.side_channel_dict = {}
         if "hand_tailored" not in self.side_channels:
             return
         with open(self.side_channel_filepath, "rb") as f:
             side_channel_means = [
-                3.70E+31,
-                3.77E+27,
-                1.34E+17,
-                3.70E+31,
-                3.25E+16,
-                2.64E+26,
-                1.24E+07,
-                1.23E+08,
-                5.26E+04,
-                4.11E+05,
-                9.26E+05,
-                1.20E+06,
-                4.12E+06,
-                4.17E+06,
-                1.84E+06,
-                4.57E+30,
-                -4.57E+32,
-                6.37E+02,
-                3.79E+14,
-                -3.92E+07,
-                2.06E+06,
-                -1.52E+06,
-                -6.30E+03,
-                -7.78E+02,
-                6.12E+01,
+                3.84E+03,
+                7.96E+23,
+                8.13E+13,
+                4.70E+02,
+                2.12E+13,
+                5.41E+22,
+                2.35E+03,
+                2.44E+04,
+                1.12E+01,
+                9.24E+01,
+                1.91E+02,
+                2.43E+02,
+                7.88E+02,
+                7.96E+02,
+                3.59E+02,
+                2.25E-02,
+                -1.35E+00,
+                1.82E-02,
+                7.56E+10,
+                -7.33E+03,
+                7.15E+02,
+                -3.17E+02,
+                -1.18E+00,
+                -3.34E-02,
+                3.67E-02
             ]
             side_channel_std_dev = [
-                1.70E+31,
-                2.27E+27,
-                3.69E+16,
-                1.70E+31,
-                9.03E+15,
-                1.59E+26,
-                7.43E+06,
-                7.39E+07,
-                3.16E+04,
-                2.47E+05,
-                5.60E+05,
-                7.23E+05,
-                2.49E+06,
-                2.52E+06,
-                1.11E+06,
-                2.89E+30,
-                3.65E+33,
-                1.44E+03,
-                2.28E+14,
-                2.36E+07,
-                1.20E+06,
-                7.23E+05,
-                3.81E+03,
-                4.75E+02,
-                3.72E+01
+                3.11E+03,
+                8.75E+23,
+                6.26E+13,
+                6.04E+02,
+                3.21E+13,
+                4.10E+22,
+                1.71E+03,
+                1.28E+04,
+                6.12E+00,
+                4.95E+01,
+                8.99E+01,
+                1.16E+02,
+                4.35E+02,
+                4.40E+02,
+                1.83E+02,
+                1.18E+00,
+                1.87E+02,
+                1.21E-01,
+                5.83E+10,
+                5.93E+03,
+                3.34E+03,
+                6.01E+03,
+                7.55E-01,
+                3.91E-01,
+                4.33E-01
             ]
             def clean(elem):
                 if math.isinf(elem) or math.isnan(elem):
@@ -411,9 +413,8 @@ class AIA(dataset_models.dataset.Dataset):
         prediction value. We also feed it into the neural network
         as side information.
         """
-        assert False
-        prior_datetime_string = self._get_prior_timestep_string(filename, 1)
-        return self.y_prior_dict[prior_datetime_string]
+        k = filename[9:22]
+        return self.y_prior_dict[k]
 
     def _clean_data(self):
         """
@@ -432,7 +433,7 @@ class AIA(dataset_models.dataset.Dataset):
                             return False
                     self._get_y(filename)
                     if len(self.side_channels) > 0:
-                       self._get_side_channel_data(filename)
+                        self._get_side_channel_data(filename)
                 except (KeyError, ValueError) as e:
                     return False
                 return True
@@ -464,6 +465,12 @@ class AIA(dataset_models.dataset.Dataset):
             previous_filename = self._get_prior_x_filename(filename, previous)
             data = feather.read_dataframe(directory + previous_filename)
             return data.values
+          
+    def _get_hand_tailored_side_channel_data(self, filename):
+        """
+        Get the vector of side channel information that summarizes the magnetogram.
+        """
+        return self.side_channel_dict[filename[9:17]]
 
     def _get_side_channel_data(self, filename):
         """

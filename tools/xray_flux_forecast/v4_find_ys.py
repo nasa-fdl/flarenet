@@ -6,8 +6,9 @@ Delays and catches can be specified in the arrays below.
 The resulting file has the following columns:
 1. Date Stamp
 2. Max Xray during catch after delay
-3. Delta Xray flux (Column 2 minus current Xray flux)
-4. File name
+3. Current Xray Flux
+4. Delta Xray flux (Column 2. - Column 3.)
+5. File name
 """
 
 #!usr/env/bin python

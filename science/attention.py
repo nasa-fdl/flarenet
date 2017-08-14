@@ -27,7 +27,9 @@ parser.add_argument('network_model', metavar='N', type=str, nargs=1,
 args = parser.parse_args()
 
 # Assign thearguments from the command line
-side_channels = args.side_channels[0]
+side_channels = [args.side_channels[0]]
+if side_channels[0] not in ["true_value", "current_goes", "hand_tailored"]:
+    side_channels = []
 aia_image_count = args.aia_image_count[0]
 network_model_path = args.network_model[0]
 
@@ -35,7 +37,7 @@ network_model_path = args.network_model[0]
 K.set_learning_phase(0)
 
 # Specify the data. This currently defaults to models including the hand_tailored side channel
-dataset_model = aia.AIA(side_channels=[side_channels], aia_image_count=aia_image_count, dependent_variable="flux delta")
+dataset_model = aia.AIA(side_channels=side_channels, aia_image_count=aia_image_count, dependent_variable="flux delta")
 network_model = dataset_model.get_network_model(network_model_path)
 
 # Compile the function that generates the gradients for input images based on the network
@@ -48,6 +50,10 @@ def compile_saliency_function(model, grad_input_index=0):
         The first indexed items will be the AIA images, followed by the side channel information.
     """
     inp = model.input
+
+    # Handle the case where there is a single input
+    if type(inp) != list:
+        inp = [inp]
     output = model.layers[-1].output
     loss = output[0]
     grads = K.gradients(loss, inp)
@@ -92,7 +98,7 @@ if aia_image_count > 1:
         query_input.append(x_inputs[i][0].reshape(1, 1024, 1024, 8))
 
 # Append the side channel data. This will currently only append one side channel.
-if side_channels == "hand_tailored":
+if "hand_tailored" in side_channels:
     query_input.append(x_inputs[aia_image_count][0].reshape(1,25))
 elif len(side_channels) > 0:
     query_input.append(x_inputs[aia_image_count][0].reshape(1,1))

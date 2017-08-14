@@ -31,7 +31,7 @@ will be used.
 Before running the script, we recommend you start the tensorboard server so you
 can track the progress.
 
-`tensorboard --logdir=/tmp/version1`
+`tensorboard --logdir=/tmp/version4`
 
 """
 

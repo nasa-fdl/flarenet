@@ -34,5 +34,4 @@ install:
 
 # command to run tests
 script:
-  - PYTHONPATH=$PWD:$PYTHONPATH py.test software_tests/;
-  
+  - PYTHONPATH=$PWD:$PYTHONPATH py.test software_tests/*;

@@ -1,7 +1,8 @@
 import numpy as np
 import random
+import dataset_models.dataset
 
-class Synthetic:
+class Synthetic(dataset_models.dataset.Dataset):
     """
     A synthetic data generator. This class is meant to check for numerical and other
     issues that may confuse training. These synthetic data produce y values equal
@@ -75,6 +76,19 @@ class Synthetic:
             return self.training_data[index][1]
         else:
             return self.validation_data[index][1]
+
+    def get_validation_step_count(self):
+        """The number of datapoints to generate for validation"""
+        return 32
+
+    def download_dataset(self):
+        """This is not a dataset_model defined by data, so this can just return.
+        """
+        return
+
+    def is_downloaded(self):
+        """Confirm that the dataset has been successfully downloaded"""
+        return True
 
     def generator(self, training=True):
         """

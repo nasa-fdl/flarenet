@@ -22,7 +22,6 @@ def test_imports():
     from datetime import timedelta, datetime
     import argparse
     import sys
-    import psutil
     import argparse
 
 if __name__ == '__main__':

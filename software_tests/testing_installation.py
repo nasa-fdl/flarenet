@@ -25,17 +25,5 @@ def test_imports():
     import psutil
     import argparse
 
-
-def test_presence_of_aia_data():
-    """
-    todo: fix this test
-    """
-    return
-    
-    from network_models.training_callbacks import TrainingCallbacks
-    from dataset_models.sdo.aia import aia
-    aia = aia.AIA(32)
-    self.assertTrue(aia.is_downloaded())
-
 if __name__ == '__main__':
     pytest.main([__file__])

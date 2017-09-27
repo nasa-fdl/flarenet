@@ -19,7 +19,7 @@ class AIA(dataset_models.dataset.Dataset):
                  lag="01hr",
                  catch="24hr",
                  aia_image_count=2,
-                 side_channels=["true_value", "current_goes", "hand_tailored"]):
+                 side_channels=["", "true_value", "current_goes", "hand_tailored"]):
         """
         Get a directory listing of the AIA data and load all the filenames
         into memory. We will loop over these filenames while training or
@@ -134,16 +134,22 @@ class AIA(dataset_models.dataset.Dataset):
                 data_x = []
                 data_y = []
 
+    def get_network_model(self, network_model_path):
+        """Load a network model from file.
+        @param network_model_path {string} The file path to the network model.
+        """
+        from keras.models import load_model
+        from dataset_models.sdo.aia.layers import LogWhiten
+        custom_objects = {"LogWhiten": LogWhiten}
+        model = load_model(network_model_path,
+                           custom_objects=custom_objects)
+        return model
+
     def examine_weights(self, network_model_path):
         """
         Print the weights of the network.
         """
-        from keras.models import load_model
-        from dataset_models.sdo.aia.layers import LogWhiten
-
-        custom_objects = {"LogWhiten": LogWhiten}
-        model = load_model(network_model_path,
-                           custom_objects=custom_objects)
+        model = self.get_network_model(network_model_path)
         for layer in model.layers:
             weights = layer.get_weights() # list of numpy arrays
             print weights
@@ -153,13 +159,7 @@ class AIA(dataset_models.dataset.Dataset):
         Generate a CSV file with the true and the predicted values for
         x-ray flux.
         """
-        from keras.models import load_model
-        from dataset_models.sdo.aia.layers import LogWhiten
-
-        custom_objects = {"LogWhiten": LogWhiten}
-        model = load_model(network_model_path,
-                           custom_objects=custom_objects)
-
+        model = self.get_network_model(network_model_path)
         def save_performance(file_names, outfile_path, training=None):
             """
             Evaluate the files with the model and output them

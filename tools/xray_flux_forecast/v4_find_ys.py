@@ -70,7 +70,7 @@ for delay in delays:
              
             if end_index > len(Y_data):
                 end_index = len(Y_data)  
-            for j in range(index,end_index):
+            for j in range(int(index),int(end_index)):
                 if Y_data[j][1] != 'NA':
                     catch_arr.append(float(Y_data[j][1]))
                 else:
@@ -87,8 +87,8 @@ for delay in delays:
         Y_vals.append(y_row)
         
         #Processing flare files
-        flare_files = glob.glob(filePath + 'validation/*_AIA*060m.fthr')
-        flare_files += glob.glob(filePath + 'training/*_AIA*060m.fthr')
+        flare_files = glob.glob(filePath + 'validation/*_AIA*012h.fthr')
+        flare_files += glob.glob(filePath + 'training/*_AIA*012h.fthr')
         for f in flare_files:
 
             inxSlash =  [m.start() for m in re.finditer('/', f)]
@@ -148,6 +148,6 @@ for delay in delays:
         else:
             this_dur = '%02dmin'%(catch)
         
-        print len(Y_vals)
-        writer = csv.writer(file(filePath + 'y/All_Ys_%sDelay_%sMax.csv'%(this_delay,this_dur),'w'))
+        print(len(Y_vals))
+        writer = csv.writer(open(filePath + 'y/All_Ys_%sDelay_%sMax.csv'%(this_delay,this_dur),'w'))
         writer.writerows(Y_vals)

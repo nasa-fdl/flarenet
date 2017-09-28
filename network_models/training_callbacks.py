@@ -7,7 +7,7 @@ class TrainingCallbacks(keras.callbacks.Callback):
     def __init__(self, filepath, network_arguments):
         self.timestr = time.strftime("%Y%m%d-%H%M%S")
         training_directory_path = filepath + str(self.timestr) + "/"
-        print "making model ouput directory: " + training_directory_path
+        print("making model ouput directory: " + training_directory_path)
         os.makedirs(training_directory_path)
         directories = ["epochs", "performance", "maps", "features", "embeddings"]
         for directory in directories:
@@ -15,7 +15,7 @@ class TrainingCallbacks(keras.callbacks.Callback):
             os.makedirs(training_directory_path + directory)
         self.filepath = training_directory_path + "performance/loss_and_architecture.csv"
         self.argument_string = arguments_to_csv_row(network_arguments)
-        with open(self.filepath, "wb") as out:
+        with open(self.filepath, "w") as out:
             csv_header_string =  arguments_to_csv_header(network_arguments)
             out.write(csv_header_string)
             out.write("\n")
@@ -28,9 +28,9 @@ class TrainingCallbacks(keras.callbacks.Callback):
 
         with open(self.filepath, "ab") as out:
             for loss in self.losses:
-                out.write(str(loss[0]))
+                out.write((loss[0]))
                 out.write(",")
-                out.write(str(loss[1]))
+                out.write((loss[1]))
                 out.write(",")
                 out.write(self.argument_string)
                 out.write("\n")

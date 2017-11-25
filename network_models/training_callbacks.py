@@ -55,6 +55,8 @@ def arguments_to_csv_header(args):
     This will have the form "epoch number,training score,test score,layer1 parameter1,..."
     """
     header = "validation loss, training loss"
+    if args is None:
+        return header
     arg_dict = args.__dict__
     arg_dict.pop("ignore", None)
     l = list(arg_dict)
@@ -70,6 +72,8 @@ def arguments_to_csv_row(args):
     to load into analytical programming environments like R.
     """
     row = ""
+    if args is None:
+        return row
     arg_dict = args.__dict__
     arg_dict.pop("ignore", None)
     l = list(arg_dict)

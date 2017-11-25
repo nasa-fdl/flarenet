@@ -1,9 +1,0 @@
-# Data Locations
-aia_path: /data/sw/version4/
-
-# Network Learning Parameters
-steps_per_epoch: 100
-samples_per_step: 30
-epochs: 100
-optimizer: adam
-loss: mean_squared_error

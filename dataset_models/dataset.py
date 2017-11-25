@@ -35,6 +35,14 @@ class Dataset(object):
         """
         raise NotImplementedError
 
+    def get_validation_generator(self):
+        """
+        Iterate through the entire validation dataset, then loop back to the first validation
+        sample. You should randomize the order of the validation set within the initialization
+        of the dataset_model.
+        """
+        raise NotImplementedError
+
     def training_generator(self):
         """
         Generate samples for training by selecting a random subsample of

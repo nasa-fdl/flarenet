@@ -5,6 +5,7 @@ training/version0/argument-search-results/*
 training/version1/argument-search-results/*
 trained_models/
 smac-v2.10.03-master-778/
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -63,7 +63,7 @@ import argparse
 
 # Libraries packaged with this repository
 from network_models.training_callbacks import TrainingCallbacks
-from dataset_models.sdo.aia import aia, layers
+from dataset_models.sdo import aia, layers
 from tools import tools
 
 from keras.optimizers import adam

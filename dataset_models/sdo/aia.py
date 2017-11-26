@@ -139,7 +139,7 @@ class AIA(dataset_models.dataset.Dataset):
         @param network_model_path {string} The file path to the network model.
         """
         from keras.models import load_model
-        from dataset_models.sdo.aia.layers import LogWhiten
+        from dataset_models.sdo.layers import LogWhiten
         custom_objects = {"LogWhiten": LogWhiten}
         model = load_model(network_model_path,
                            custom_objects=custom_objects)

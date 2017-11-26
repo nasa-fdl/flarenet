@@ -5,7 +5,7 @@ inputs. Basically, the script asks, "how much will the loss function change if t
 value changes".
 """
 import argparse
-from dataset_models.sdo.aia import aia
+from dataset_models.sdo import aia
 import numpy as np
 from keras import backend as K
 from scipy.misc import imsave

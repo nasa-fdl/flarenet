@@ -99,5 +99,5 @@ network_model.compile(optimizer=adam, loss="mean_squared_error")
 #        Run the Experiment         #
 #####################################
 
-output_path = os.path.dirname(os.path.realpath(__file__)) + "/trained_models/"
+output_path = head + "/"
 experiment.experiment(network_model, output_path, dataset_model=dataset_model, args=None, config=config)

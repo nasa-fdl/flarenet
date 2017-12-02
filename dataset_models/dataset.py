@@ -1,4 +1,5 @@
 import yaml
+import os.path
 
 class Dataset(object):
     """
@@ -7,9 +8,10 @@ class Dataset(object):
 
     def __init__(self, samples_per_step=32):
 
-        # Load the configuration file indicating where the files are stored,
-        # then load the names of the data files
-        with open("config.yml", "r") as config_file:
+        # Open the root config file
+        abspath = os.path.abspath(__file__)
+        head, tail = os.path.split(abspath)
+        with open(head + "/../config.yml", "r") as config_file:
             self.config = yaml.load(config_file)
 
         self.samples_per_step = samples_per_step  # Batch size

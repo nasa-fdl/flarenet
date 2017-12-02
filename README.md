@@ -49,15 +49,14 @@ Please open pull requests to correct this setup script based on your own experie
 
 ### AWS Setup ###
 
-Amazon Web Services (AWS) provides cloud computing machines with powerful GPUs for training your models. We are working with the [AMI Deep Learning Image](https://aws.amazon.com/marketplace/pp/B076T8RSXY?qid=1509927949185) for Amazon Linux that pre-packages 
-CUDA 9, cuDNN 7, NCCL 2.0.5, NVidia Driver 384.81, and TensorFlow [master with enhancements for CUDA 9 support].
+Amazon Web Services (AWS) provides cloud computing machines with powerful GPUs for training your models. We are working with the "AMI Deep Learning Image" for Amazon Linux that pre-packages CUDA 9, cuDNN 7, NCCL 2.0.5, NVidia Driver 384.81, and TensorFlow [master with enhancements for CUDA 9 support].
 
 **Selecting your machine:** If you are on a budget, we recommend working with a p2.xlarge machine. These are equipped with K80 GPUs, which have more GPU memory than a single p3 machine. The p3 machines share GPU memory which makes them better when you use one of the more expensive machines. Either way, the memory available is the most important factor determining training efficiency for these solar problems. The images are large, multi-channeled, and noisy. The bigger the batch size, the better. Also note, you can use the cheapest instance when downloading data to Amazon storage. You can switch to a bigger instance for training after you have downloaded all the data you want.
 
 Steps:
 
 1. [Create an account with AWS](https://portal.aws.amazon.com/billing/signup?nc2=h_ct&redirect_url=https%3A%2F%2Faws.amazon.com%2Fregistration-confirmation#/start)
-2. [Create a machine instance](https://us-west-2.console.aws.amazon.com/ec2/v2/home?region=us-west-2#LaunchInstanceWizard:) Select the "Deep Learning Base AMI (Amazon Linux) Version 1.0 - ami-dceb3aa4" instance from the list.
+2. [Create a machine instance](https://us-west-2.console.aws.amazon.com/ec2/v2/home?region=us-west-2#LaunchInstanceWizard:) Select the "Deep Learning AMI (Amazon Linux) Version 1.0 - ami-77eb3a0f" instance from the list.
 3. Select the hardware you want to deploy to, then launch the instance. See "Selecting your machine" above for details.
 4. Connect to the newly launched instance over SSH. This should be something like `ssh ec2-user@YOUR-MACHINE-HERE.us-west-2.compute.amazonaws.com`
 5. Activate the software required by FlareNet `source activate tensorflow_p27`

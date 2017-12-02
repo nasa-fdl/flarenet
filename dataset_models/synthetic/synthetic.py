@@ -62,6 +62,7 @@ class Synthetic(dataset_models.dataset.Dataset):
             signal_channel_count -- The number of layers that determine the dependent variable (default 1)
             active_regions -- Should the signal be arranged into active regions? (default False)
         """
+        super(Synthetic, self).__init__()
         self.samples_per_step = samples_per_step
         self.input_width = input_width
         self.input_height = input_height

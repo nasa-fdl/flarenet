@@ -1,5 +1,5 @@
 import argparse
-from dataset_models.sdo.aia import aia
+from dataset_models.sdo import aia
 
 print "WARNING: This script is incomplete and currently assumes"
 print "you will use the AIA dataset model. Please update appropriately."

@@ -1,7 +1,6 @@
 """
 This is a script for assembling a y file based on the files currently in the training and validation folders.
 It assumes you are using version 4 data.
-It looks for the training and validation folders inside the data folder specified in config.yml
 Delays and catches can be specified in the arrays below.
 The resulting file has the following columns:
 1. Date Stamp
@@ -22,14 +21,16 @@ import numpy as np
 import glob
 import yaml
 import re
+import os
+import os.path
 
-with open("../../config.yml", "r") as config_file:
-    config = yaml.load(config_file)
-
-filePath = config['aia_path']
+filePath = "dataset_models/sdo/"
+dependent_variable_path = "dataset_models/sdo/y/"
+if not os.path.exists(dependent_variable_path):
+    os.makedirs(dependent_variable_path)
 
 #Y_data
-Y_file_path = 'Flux_2010_2017_max.csv'
+Y_file_path = 'tools/xray_flux_forecast/Flux_2010_2017_max.csv'
 Y_data = csv.reader(open(Y_file_path,'r'))
 Y_data = list(Y_data)
 Y_init_date = datetime.datetime.strptime(Y_data[1][0],'%Y-%m-%d %H:%M:%S')
@@ -70,7 +71,7 @@ for delay in delays:
              
             if end_index > len(Y_data):
                 end_index = len(Y_data)  
-            for j in range(index,end_index):
+            for j in range(int(index),int(end_index)):
                 if Y_data[j][1] != 'NA':
                     catch_arr.append(float(Y_data[j][1]))
                 else:
@@ -87,8 +88,8 @@ for delay in delays:
         Y_vals.append(y_row)
         
         #Processing flare files
-        flare_files = glob.glob(filePath + 'validation/*_AIA*060m.fthr')
-        flare_files += glob.glob(filePath + 'training/*_AIA*060m.fthr')
+        flare_files = glob.glob(filePath + 'validation/*_AIA*012h.fthr')
+        flare_files += glob.glob(filePath + 'training/*_AIA*012h.fthr')
         for f in flare_files:
 
             inxSlash =  [m.start() for m in re.finditer('/', f)]
@@ -148,6 +149,6 @@ for delay in delays:
         else:
             this_dur = '%02dmin'%(catch)
         
-        print len(Y_vals)
-        writer = csv.writer(file(filePath + 'y/All_Ys_%sDelay_%sMax.csv'%(this_delay,this_dur),'w'))
+        print(len(Y_vals))
+        writer = csv.writer(open(dependent_variable_path + 'All_Ys_%sDelay_%sMax.csv'%(this_delay,this_dur),'w'))
         writer.writerows(Y_vals)

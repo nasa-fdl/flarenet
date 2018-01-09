@@ -55,15 +55,15 @@ def experiment(network_model, output_path, dataset_model=None, args=None, config
     sys.stdout = orig_stdout
     f.close()
 
-    print "##################"
-    print "Run identifier: " + str(training_callbacks.timestr)
-    print "You can find the results from this run in a folder named " + str(training_callbacks.timestr)
-    print "##################"
+    print("##################")
+    print("Run identifier: " + str(training_callbacks.timestr))
+    print("You can find the results from this run in a folder named " + str(training_callbacks.timestr))
+    print("##################")
 
     # Do not allow a configuration with more than 150 million parameters
     if network_model.count_params() > 150000000:
-        print "exiting since this network architecture will contain too many parameters"
-        print "Result for SMAC: SUCCESS, 0, 0, 999999999, 0" #  todo: figure out the failure string within SMAC
+        print("exiting since this network architecture will contain too many parameters")
+        print("Result for SMAC: SUCCESS, 0, 0, 999999999, 0") #  todo: figure out the failure string within SMAC
         exit()
 
     #####################################
@@ -89,13 +89,13 @@ def experiment(network_model, output_path, dataset_model=None, args=None, config
     )
 
     # Loss on the training set
-    print "printing loss history"
-    print history.history['loss']
+    print("printing loss history")
+    print(history.history['loss'])
 
     # Loss on the validation set
     if 'val_loss' in history.history.keys():
-        print "printing history of validation loss over all epochs:"
-        print history.history['val_loss']
+        print("printing history of validation loss over all epochs:")
+        print(history.history['val_loss'])
 
     # Print the performance of the network for the SMAC algorithm
-    print "Result for SMAC: SUCCESS, 0, 0, %f, 0" % history.history['loss'][-1]
+    print("Result for SMAC: SUCCESS, 0, 0, %f, 0" % history.history['loss'][-1])

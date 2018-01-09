@@ -24,8 +24,12 @@ import re
 import os
 import os.path
 
-filePath = "dataset_models/sdo/"
-dependent_variable_path = "dataset_models/sdo/y/"
+with open("config.yml", "r") as config_file:
+    config = yaml.load(config_file)
+
+filePath = config['aia_path']
+dependent_variable_path = filePath + "y/"
+
 if not os.path.exists(dependent_variable_path):
     os.makedirs(dependent_variable_path)
 

@@ -45,12 +45,28 @@ class Dataset(object):
         """
         raise NotImplementedError
 
-    def training_generator(self):
+    def get_training_generator(self):
         """
         Generate samples for training by selecting a random subsample of
         files located in the training directory. The training data will
         then be collected with the additional timesteps of images
         and side channel information.
+        """
+        raise NotImplementedError
+
+    def get_training_generator_multiprocess(self):
+        """
+        Return data for training in a threadsafe manner. To
+        instantiate this method you should generally
+        utilize the Keras Sequence class.
+        """
+        raise NotImplementedError
+
+    def get_validation_generator_multiprocess(self):
+        """
+        Return data for validation in a threadsafe manner. To
+        instantiate this method you should generally
+        utilize the Keras Sequence class.
         """
         raise NotImplementedError
 

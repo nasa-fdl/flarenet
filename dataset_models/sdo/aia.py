@@ -4,6 +4,7 @@ from datetime import timedelta, datetime
 import random
 import math
 import dataset_models.dataset
+from dataset_models.sequencer import GeneratorSequence
 from operator import truediv as div
 from operator import sub
 import feather
@@ -105,7 +106,7 @@ class AIA(dataset_models.dataset.Dataset):
             data_y = []
             data_x = []
             for f in self.validation_files:
-                sample = self._get_x_data(f, aia_image_count=self.aia_image_count, training=False)
+                sample = self._get_x_data(f, training=False)
                 self._sample_append(data_x, sample)
                 data_y.append(self._get_y(f))
             yield self._finalize_dataset(data_x, data_y)
@@ -125,7 +126,7 @@ class AIA(dataset_models.dataset.Dataset):
         while 1:
             f = files[i]
             i += 1
-            sample = self._get_x_data(f, aia_image_count=self.aia_image_count, training=True)
+            sample = self._get_x_data(f, training=True)
             self._sample_append(data_x, sample)
             data_y.append(self._get_y(f))
 
@@ -137,6 +138,18 @@ class AIA(dataset_models.dataset.Dataset):
                 yield self._finalize_dataset(data_x, data_y)
                 data_x = []
                 data_y = []
+
+    def get_training_generator_multiprocess(self):
+        """
+        Generate sets of training data in a threadsafe manner.
+        """
+        return GeneratorSequence(
+            dataset_model_class=AIA,
+            batch_size=self.samples_per_step,
+            dataset_model_params={"side_channels": self.side_channels,
+                "aia_image_count": self.aia_image_count,
+                "dependent_variable": self.dependent_variable
+            })
 
     def get_network_model(self, network_model_path):
         """Load a network model from file.
@@ -174,7 +187,7 @@ class AIA(dataset_models.dataset.Dataset):
             for filename in file_names:
                 data_x = []
                 data_y = []
-                sample = self._get_x_data(filename, aia_image_count=self.aia_image_count, training=training)
+                sample = self._get_x_data(filename, training=training)
                 self._sample_append(data_x, sample)
                 data_y.append(-999999999999.0)
                 prediction = model.predict(self._finalize_dataset(data_x, data_y)[0], verbose=0)
@@ -492,11 +505,10 @@ class AIA(dataset_models.dataset.Dataset):
         if "hand_tailored" in self.side_channels:
             return np.array(self._get_hand_tailored_side_channel_data(filename))
 
-    def _get_x_data(self, filename, aia_image_count=2, training=None):
+    def _get_x_data(self, filename, training=None):
         """
         Get the list of data associated with the sample filename.
         @param filename {string} The name of the file which we are currently sampling.
-        @param aia_image_count {int} The total number of timestep images to be composited.
         @param current_data {list} The data that we will append to.
         @param training {bool} Indicates whether we are currently training or testing.
            This will determine where we look for x-files.
@@ -506,7 +518,7 @@ class AIA(dataset_models.dataset.Dataset):
             directory = self.training_directory
         else:
             directory = self.validation_directory
-        for index in range(0, aia_image_count):
+        for index in range(0, self.aia_image_count):
             current_data.append(self._get_aia_image(filename, directory, previous=index))
         if self.side_channels:
             data_x_side_channel_sample = self._get_side_channel_data(filename)

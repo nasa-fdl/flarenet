@@ -3,3 +3,6 @@ steps_per_epoch: 100
 samples_per_step: 20
 epochs: 100
 loss: mean_squared_error
+training_multiprocess: True
+validation_generator: True
+workers: 2

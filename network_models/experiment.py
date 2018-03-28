@@ -55,15 +55,15 @@ def experiment(network_model, output_path, dataset_model=None, args=None, config
     sys.stdout = orig_stdout
     f.close()
 
-    print "##################"
-    print "Run identifier: " + str(training_callbacks.timestr)
-    print "You can find the results from this run in a folder named " + str(training_callbacks.timestr)
-    print "##################"
+    print("##################")
+    print("Run identifier: " + str(training_callbacks.timestr))
+    print("You can find the results from this run in a folder named " + str(training_callbacks.timestr))
+    print("##################")
 
     # Do not allow a configuration with more than 150 million parameters
     if network_model.count_params() > 150000000:
-        print "exiting since this network architecture will contain too many parameters"
-        print "Result for SMAC: SUCCESS, 0, 0, 999999999, 0" #  todo: figure out the failure string within SMAC
+        print("exiting since this network architecture will contain too many parameters")
+        print("Result for SMAC: SUCCESS, 0, 0, 999999999, 0") #  todo: figure out the failure string within SMAC
         exit()
 
     #####################################
@@ -78,24 +78,55 @@ def experiment(network_model, output_path, dataset_model=None, args=None, config
         os.makedirs(model_output_path)
     model_checkpoint = ModelCheckpoint(model_output_path)
 
-    history = network_model.fit_generator(dataset_model.get_training_generator(),
+    # Default to the simple generator unless the `training_multiprocess`
+    # flag is set within the config file
+    if "training_multiprocess" in config and config["training_multiprocess"]:
+        print("Training will run in **multiple** processes. Change your config if this is undesired.")
+        training_generator = dataset_model.get_training_generator_multiprocess()
+        use_multiprocessing = True
+    else:
+        print("Training will run in a **single** processes. Change your config if this is undesired.")
+        training_generator = dataset_model.get_training_generator()
+        use_multiprocessing = False
+        if "workers" in config and config["workers"] > 1:
+            print("!!! Multi-threading is not currently supported.")
+            print("Please set the number of workers to 1 or use multi-process")
+            exit()
+
+    # Default to getting all the training data unless the
+    # `validation_generator` flag is set within the config file
+    if "validation_generator" in config and config["validation_generator"]:
+        validation_generator = dataset_model.get_validation_generator()
+    else:
+        print("All validation data will be loaded into memory. Change your config if this is undesired.")
+        validation_generator = dataset_model.get_validation_data()
+
+    # Workers specify the number of processes and/or threads executing
+    if "workers" in config:
+        workers = config["workers"]
+    else:
+        workers = 1
+    print("Running with %d workers" % workers)
+
+    history = network_model.fit_generator(training_generator,
                                        steps_per_epoch,
                                        max_queue_size=10,
                                        epochs=epochs,
-                                       validation_data=dataset_model.get_validation_generator(),
+                                       validation_data=validation_generator,
                                        callbacks=[tensorboard_callbacks, training_callbacks, model_checkpoint],
                                        validation_steps=dataset_model.get_validation_step_count(),
-                                       workers=1,
+                                       workers=workers,
+                                       use_multiprocessing=use_multiprocessing,
     )
 
     # Loss on the training set
-    print "printing loss history"
-    print history.history['loss']
+    print("printing loss history")
+    print(history.history['loss'])
 
     # Loss on the validation set
     if 'val_loss' in history.history.keys():
-        print "printing history of validation loss over all epochs:"
-        print history.history['val_loss']
+        print("printing history of validation loss over all epochs:")
+        print(history.history['val_loss'])
 
     # Print the performance of the network for the SMAC algorithm
-    print "Result for SMAC: SUCCESS, 0, 0, %f, 0" % history.history['loss'][-1]
+    print("Result for SMAC: SUCCESS, 0, 0, %f, 0" % history.history['loss'][-1])

@@ -111,6 +111,21 @@ class AIA(dataset_models.dataset.Dataset):
                 data_y.append(self._get_y(f))
             yield self._finalize_dataset(data_x, data_y)
 
+    def get_validation_data(self):
+        """
+        Load samples for validation dataset. This will load the entire validation dataset
+        into memory. If you have a very large validation dataset you should likely
+        refactor this to be a data generator that will stage the data into memory incrementally.
+        """
+        data_y = []
+        data_x = []
+        for f in self.validation_files:
+            sample = self._get_x_data(f, training=False)
+            self._sample_append(data_x, sample)
+            data_y.append(self._get_y(f))
+
+        return self._finalize_dataset(data_x, data_y)
+
     def get_training_generator(self):
         """
         Generate samples for training by selecting a random subsample of

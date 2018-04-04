@@ -36,7 +36,7 @@ class GeneratorSequence(keras.utils.data_utils.Sequence):
         """Get a batch of samples. If the batch size will take the sampling
         past the current list of files, then the files list will be
         shuffled and the sampling will continue from the beginning.
-        """@
+        """
         dataset_model = self.dataset_model
         files = dataset_model.train_files
         random.seed(batch_idx)
